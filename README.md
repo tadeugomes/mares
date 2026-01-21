@@ -58,6 +58,17 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Estação Sentinela:** Referência para Itapoá e São Francisco do Sul
 - **Nota:** Serve como previsão para ambos os portos da região
 
+### 7. Vila do Conde - Barcarena (PA)
+- **Ficha:** 10566
+- **Tipo de Maré:** Grande amplitude com forte distorção fluvial (~3m)
+- **Nível Médio (NM):** 2.15 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_viladoconde.py`
+- **Saída:** `viladoconde_extremos_2020_2026.csv`
+- **Localização:** Baía de Marajó - Foz do Rio Amazonas
+- **⚠️ Observação:** Forte influência fluvial (Amazonas/Tocantins) e distorção de águas rasas
+- **Nota:** Segunda maior amplitude do projeto, assimetria pronunciada (sobe mais rápido que desce)
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -109,6 +120,14 @@ Os modelos utilizam constantes harmônicas incluindo:
 - **Estação sentinela:** Serve de referência para portos próximos (Itapoá, São Francisco do Sul)
 - **Para ML:** O lag temporal entre Ilha da Paz e portos internos da baía é feature forte para prever propagação da onda de maré
 
+**Vila do Conde - Barcarena (PA):**
+- Grande amplitude com forte distorção (~3m - segunda maior do projeto)
+- **Localização fascinante:** Foz do Rio Amazonas (Baía de Marajó)
+- **Influência fluvial extrema:** Gigantesco volume de água doce do Amazonas/Tocantins
+- **Distorção de águas rasas pronunciada:** M4 (0.054m) e M6 (0.021m) muito significativas
+- **Assimetria:** Maré sobe mais rápido do que desce
+- **Para ML:** Vazão fluvial (Amazonas/Tocantins) é feature crítica para desvios sazonais
+
 ## Instalação
 
 ### 1. Instalar dependências
@@ -157,6 +176,11 @@ python previsao_mares_paranagua.py
 python previsao_mares_ilhadapaz.py
 ```
 
+**Vila do Conde:**
+```bash
+python previsao_mares_viladoconde.py
+```
+
 ### Opção 2: Usar script auxiliar interativo
 
 ```bash
@@ -190,15 +214,16 @@ Cada script gera:
 
 ```
 mares/
-├── previsao_mares_itaqui.py     # Script Porto de Itaqui
-├── previsao_mares_tgs.py        # Script Terminal Gás Sul
-├── previsao_mares_santos.py     # Script Porto de Santos
-├── previsao_mares_riograande.py # Script Porto do Rio Grande
-├── previsao_mares_paranagua.py  # Script Porto de Paranaguá
-├── previsao_mares_ilhadapaz.py  # Script Ilha da Paz
-├── requirements.txt              # Dependências Python
-├── run.sh                        # Script auxiliar de execução
-└── README.md                     # Esta documentação
+├── previsao_mares_itaqui.py      # Script Porto de Itaqui
+├── previsao_mares_tgs.py         # Script Terminal Gás Sul
+├── previsao_mares_santos.py      # Script Porto de Santos
+├── previsao_mares_riograande.py  # Script Porto do Rio Grande
+├── previsao_mares_paranagua.py   # Script Porto de Paranaguá
+├── previsao_mares_ilhadapaz.py   # Script Ilha da Paz
+├── previsao_mares_viladoconde.py # Script Vila do Conde
+├── requirements.txt               # Dependências Python
+├── run.sh                         # Script auxiliar de execução
+└── README.md                      # Esta documentação
 ```
 
 ## Requisitos
@@ -222,6 +247,7 @@ mares/
 - Porto do Rio Grande: UTC-3
 - Porto de Paranaguá: UTC-3
 - Ilha da Paz: UTC-3
+- Vila do Conde: UTC-3
 
 ### Período de Validade
 - Previsões calculadas para 2020-2026
@@ -258,6 +284,14 @@ lag_ilha_porto = tempo_preamar_porto_interno - tempo_preamar_ilha_da_paz
 - Previsão astronômica como baseline
 - Ventos sul e frentes frias como features meteorológicas
 - Ressacas podem adicionar +1m ao nível previsto
+
+**Vila do Conde (Barcarena):**
+- Feature principal: Previsão astronômica (este projeto)
+- **Feature fluvial crítica:** Vazão dos rios Amazonas e Tocantins
+- Target: Altura real observada
+- Desvios sazonais significativos devido à descarga fluvial
+- Distorção de assimetria capturada por componentes M4 (0.054m) e M6 (0.021m)
+- Modelo deve aprender que a maré sobe mais rápido do que desce
 
 ## Referências
 
