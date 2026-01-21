@@ -35,10 +35,11 @@ echo "2) Terminal Gás Sul (SC) - Micro-maré"
 echo "3) Porto de Santos (SP) - Micro-maré"
 echo "4) Porto do Rio Grande (RS) - Maré Mista"
 echo "5) Porto de Paranaguá (PR) - Micro-maré"
-echo "6) Todos"
+echo "6) Ilha da Paz (SC) - Micro-maré"
+echo "7) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-6]: " opcao
+read -p "Opção [1-7]: " opcao
 
 case $opcao in
     1)
@@ -84,6 +85,14 @@ case $opcao in
     6)
         echo ""
         echo "========================================="
+        echo "Calculando: Ilha da Paz (SC)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_ilhadapaz.py
+        ;;
+    7)
+        echo ""
+        echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
         echo "========================================="
         echo ""
@@ -123,6 +132,15 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_paranagua.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Ilha da Paz (SC)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_ilhadapaz.py
         fi
         ;;
     0)

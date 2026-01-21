@@ -47,6 +47,15 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Saída:** `paranagua_extremos_2020_2026.csv`
 - **⚠️ Observação:** Distorção por águas rasas (M4, MS4) e influência meteorológica
 
+### 6. Ilha da Paz - São Francisco do Sul (SC)
+- **Ficha:** 60208
+- **Tipo de Maré:** Micro-maré (amplitude < 2m)
+- **Nível Médio (NM):** 0.781 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_ilhadapaz.py`
+- **Saída:** `ilhadapaz_extremos_2020_2026.csv`
+- **Localização:** Baía da Babitonga, Santa Catarina
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -89,6 +98,12 @@ Os modelos utilizam constantes harmônicas incluindo:
 - A forma da onda de maré se deforma ao entrar na Baía de Paranaguá
 - **Influência meteorológica:** ventos sul causam sobre-elevação
 - Ideal para estudos de ML: maré astronômica + vento como features
+
+**Ilha da Paz - São Francisco do Sul (SC):**
+- Micro-maré oceânica (amplitude ~1.5m)
+- Localizada na Baía da Babitonga
+- Comportamento similar ao Terminal Gás Sul (mesma região)
+- Menor influência de águas rasas comparado a Paranaguá
 
 ## Instalação
 
@@ -133,6 +148,11 @@ python previsao_mares_riograande.py
 python previsao_mares_paranagua.py
 ```
 
+**Ilha da Paz:**
+```bash
+python previsao_mares_ilhadapaz.py
+```
+
 ### Opção 2: Usar script auxiliar interativo
 
 ```bash
@@ -171,6 +191,7 @@ mares/
 ├── previsao_mares_santos.py     # Script Porto de Santos
 ├── previsao_mares_riograande.py # Script Porto do Rio Grande
 ├── previsao_mares_paranagua.py  # Script Porto de Paranaguá
+├── previsao_mares_ilhadapaz.py  # Script Ilha da Paz
 ├── requirements.txt              # Dependências Python
 ├── run.sh                        # Script auxiliar de execução
 └── README.md                     # Esta documentação
@@ -196,6 +217,7 @@ mares/
 - Porto de Santos: UTC-3
 - Porto do Rio Grande: UTC-3
 - Porto de Paranaguá: UTC-3
+- Ilha da Paz: UTC-3
 
 ### Período de Validade
 - Previsões calculadas para 2020-2026
