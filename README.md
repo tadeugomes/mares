@@ -55,6 +55,8 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Script:** `previsao_mares_ilhadapaz.py`
 - **Saída:** `ilhadapaz_extremos_2020_2026.csv`
 - **Localização:** Baía da Babitonga, Santa Catarina
+- **Estação Sentinela:** Referência para Itapoá e São Francisco do Sul
+- **Nota:** Serve como previsão para ambos os portos da região
 
 ## Descrição
 
@@ -104,6 +106,8 @@ Os modelos utilizam constantes harmônicas incluindo:
 - Localizada na Baía da Babitonga
 - Comportamento similar ao Terminal Gás Sul (mesma região)
 - Menor influência de águas rasas comparado a Paranaguá
+- **Estação sentinela:** Serve de referência para portos próximos (Itapoá, São Francisco do Sul)
+- **Para ML:** O lag temporal entre Ilha da Paz e portos internos da baía é feature forte para prever propagação da onda de maré
 
 ## Instalação
 
@@ -222,6 +226,38 @@ mares/
 ### Período de Validade
 - Previsões calculadas para 2020-2026
 - As constantes harmônicas são atualizadas periodicamente pela DHN
+
+## Aplicações em Machine Learning
+
+### Ilha da Paz como Estação Sentinela
+
+A Ilha da Paz funciona como uma **estação sentinela** para a região da Baía da Babitonga:
+
+**Portos de referência:**
+- Itapoá (SC)
+- São Francisco do Sul (SC)
+- Outros portos internos da Baía da Babitonga
+
+**Feature de lag temporal:**
+A diferença de tempo entre o pico da maré na Ilha da Paz (oceânica) e o pico dentro da baía é uma característica muito forte para prever a propagação da onda de maré. Em modelos de ML, use:
+
+```python
+# Exemplo de feature engineering
+lag_ilha_porto = tempo_preamar_porto_interno - tempo_preamar_ilha_da_paz
+```
+
+### Outras Aplicações de ML
+
+**Porto de Paranaguá:**
+- Feature principal: Previsão astronômica (este projeto)
+- Feature de erro: Intensidade e direção do vento
+- Target: Altura real observada
+- O modelo aprende a corrigir distorções de águas rasas + efeitos meteorológicos
+
+**Porto de Santos:**
+- Previsão astronômica como baseline
+- Ventos sul e frentes frias como features meteorológicas
+- Ressacas podem adicionar +1m ao nível previsto
 
 ## Referências
 
