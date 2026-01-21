@@ -38,10 +38,11 @@ echo "5) Porto de Paranaguá Cais Leste/TCP (PR) - Micro-maré"
 echo "6) Ilha da Paz (SC) - Micro-maré"
 echo "7) Vila do Conde (PA) - Grande amplitude"
 echo "8) Paranaguá Cais Oeste I (PR) - Micro-maré"
-echo "9) Todos"
+echo "9) Porto de Antonina (PR) - Micro-maré com amplificação"
+echo "10) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-9]: " opcao
+read -p "Opção [1-10]: " opcao
 
 case $opcao in
     1)
@@ -111,6 +112,14 @@ case $opcao in
     9)
         echo ""
         echo "========================================="
+        echo "Calculando: Porto de Antonina (PR)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_antonina.py
+        ;;
+    10)
+        echo ""
+        echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
         echo "========================================="
         echo ""
@@ -177,6 +186,15 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_paranagua_cais_oeste.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Porto de Antonina (PR)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_antonina.py
         fi
         ;;
     0)

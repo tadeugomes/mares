@@ -81,6 +81,19 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **⚠️ Observação:** Complementa Cais Leste para modelagem de gradiente e propagação no canal
 - **Para ML:** Lag temporal entre Cais Oeste e Cais Leste permite prever velocidade de propagação da onda de maré
 
+### 9. Porto de Antonina (PR)
+- **Ficha:** 60110
+- **Tipo de Maré:** Micro-maré com amplificação por efeito funil
+- **Nível Médio (NM):** 1.11 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_antonina.py`
+- **Saída:** `antonina_extremos_2020_2026.csv`
+- **Localização:** Fundo da Baía de Paranaguá (mais interior)
+- **Conjunto completo:** Cais Leste → Cais Oeste I → Antonina
+- **⚠️ Observação:** Efeito funil amplifica a maré (M2: 0.536m > Cais Leste: 0.470m)
+- **⚠️ Atraso da onda:** Fase M2: 100.2° (vs Cais Leste: 85.5°) = ~14.7° de diferença
+- **Para ML:** Amplificação + lag temporal permitem modelar como a maré se propaga e intensifica ao longo da baía
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -117,16 +130,18 @@ Os modelos utilizam constantes harmônicas incluindo:
 - Localizado em estuário, sofre influência de vazão fluvial
 - Estabelecimento de porto de 7h 28m
 
-**Porto de Paranaguá (PR):**
+**Sistema Completo da Baía de Paranaguá (PR):**
 - Micro-maré com distorção significativa (amplitude ~2m)
 - **Forte distorção de águas rasas:** constantes M4, MS4, M6 significativas
 - A forma da onda de maré se deforma ao entrar na Baía de Paranaguá
 - **Influência meteorológica:** ventos sul causam sobre-elevação
-- **Duas estações disponíveis:**
-  - **Cais Leste/TCP (Ficha 60141):** NM = 0.937m, mais próximo da entrada da baía
-  - **Cais Oeste I (Ficha 60151):** NM = 0.916m, mais para o interior da baía
-- **Gradiente e propagação:** Diferença de fase entre as estações permite calcular velocidade de propagação da onda de maré no canal de acesso
-- Ideal para estudos de ML: maré astronômica + vento como features + lag temporal entre estações
+- **Três estações disponíveis formando gradiente espacial:**
+  - **Cais Leste/TCP (Ficha 60141):** NM = 0.937m, entrada da baía, M2 = 0.470m, Fase = 85.5°
+  - **Cais Oeste I (Ficha 60151):** NM = 0.916m, meio da baía, M2 = 0.470m, Fase = 85.5°
+  - **Antonina (Ficha 60110):** NM = 1.11m, fundo da baía, M2 = 0.536m, Fase = 100.2°
+- **Efeito funil:** A baía estreita em direção a Antonina, amplificando a maré (M2 aumenta 14% de Cais Leste para Antonina)
+- **Gradiente de fase:** ~14.7° de diferença entre Cais Leste e Antonina representa o tempo de propagação da onda ao longo da baía
+- **Para ML:** Conjunto único permitindo modelar amplificação, atenuação, atraso e distorção da onda de maré em um estuário
 
 **Ilha da Paz - São Francisco do Sul (SC):**
 - Micro-maré oceânica (amplitude ~1.5m)
@@ -192,6 +207,11 @@ python previsao_mares_paranagua.py
 python previsao_mares_paranagua_cais_oeste.py
 ```
 
+**Porto de Antonina:**
+```bash
+python previsao_mares_antonina.py
+```
+
 **Ilha da Paz:**
 ```bash
 python previsao_mares_ilhadapaz.py
@@ -241,6 +261,7 @@ mares/
 ├── previsao_mares_riograande.py          # Script Porto do Rio Grande
 ├── previsao_mares_paranagua.py           # Script Porto de Paranaguá (Cais Leste/TCP)
 ├── previsao_mares_paranagua_cais_oeste.py # Script Paranaguá Cais Oeste I
+├── previsao_mares_antonina.py            # Script Porto de Antonina
 ├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
 ├── previsao_mares_viladoconde.py         # Script Vila do Conde
 ├── requirements.txt                       # Dependências Python
@@ -267,7 +288,8 @@ mares/
 - Terminal Gás Sul: UTC-3
 - Porto de Santos: UTC-3
 - Porto do Rio Grande: UTC-3
-- Porto de Paranaguá: UTC-3
+- Porto de Paranaguá (todos): UTC-3
+- Porto de Antonina: UTC-3
 - Ilha da Paz: UTC-3
 - Vila do Conde: UTC-3
 
@@ -296,26 +318,40 @@ lag_ilha_porto = tempo_preamar_porto_interno - tempo_preamar_ilha_da_paz
 
 ### Outras Aplicações de ML
 
-**Porto de Paranaguá - Modelagem de Gradiente:**
+**Sistema Completo da Baía de Paranaguá - Modelagem de Propagação e Amplificação:**
 
-Ter duas estações em Paranaguá (Cais Leste/TCP e Cais Oeste I) permite modelar o gradiente de pressão e o tempo de deslocamento da massa de água dentro do canal de acesso:
+Ter três estações em Paranaguá (Cais Leste, Cais Oeste I, e Antonina) permite modelar o gradiente completo de pressão, amplificação por efeito funil, e o tempo de deslocamento da massa de água ao longo de toda a baía:
 
 ```python
-# Feature de lag temporal entre estações
-lag_cais = tempo_preamar_oeste - tempo_preamar_leste
+# Features de lag temporal entre estações (propagação da onda)
+lag_leste_oeste = tempo_preamar_oeste - tempo_preamar_leste
+lag_oeste_antonina = tempo_preamar_antonina - tempo_preamar_oeste
+lag_total = tempo_preamar_antonina - tempo_preamar_leste
 
-# Feature de gradiente de altura
-gradiente_altura = altura_leste - altura_oeste
+# Features de gradiente de altura
+gradiente_leste_oeste = altura_leste - altura_oeste
+gradiente_oeste_antonina = altura_oeste - altura_antonina
 
-# Velocidade de propagação da onda de maré no canal
-velocidade_propagacao = distancia_entre_estacoes / lag_cais
+# Feature de amplificação (efeito funil)
+# M2 aumenta de 0.470m (Cais Leste) para 0.536m (Antonina) = 14% de amplificação
+fator_amplificacao = amplitude_antonina / amplitude_cais_leste
+
+# Feature de diferença de fase (usando M2)
+# Fase Antonina: 100.2° vs Fase Cais Leste: 85.5° = 14.7° de atraso
+diferenca_fase_M2 = fase_M2_antonina - fase_M2_cais_leste
+# Converter para tempo: 14.7° / (360°/12.42h) ≈ 30 minutos de atraso
+
+# Velocidade de propagação da onda de maré na baía
+velocidade_propagacao = distancia_total_baia / lag_total
 ```
 
 **Aplicações práticas:**
-- Prever condições de corrente no canal de acesso
-- Otimizar janelas de manobra para navios de grande porte
-- Estimar tempo de chegada da maré em diferentes pontos do porto
-- Corrigir efeitos de atrito e distorção ao longo do canal
+- Prever condições de corrente em qualquer ponto da baía
+- Otimizar janelas de manobra para navios de grande porte em diferentes portos
+- Estimar tempo de chegada da maré em diferentes pontos (Paranaguá → Antonina)
+- Corrigir efeitos de atrito, distorção e amplificação ao longo da baía
+- Modelar efeito funil: como o estreitamento da baía amplifica a maré
+- Prever inundações no fundo da baía (Antonina) com base em observações na entrada (Cais Leste)
 
 **Porto de Paranaguá - Correções Meteorológicas:**
 - Feature principal: Previsão astronômica (este projeto)
