@@ -38,6 +38,15 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Saída:** `riograande_extremos_2020_2026.csv`
 - **Estabelecimento de Porto:** 7h 28m
 
+### 5. Porto de Paranaguá (PR)
+- **Ficha:** 60141
+- **Tipo de Maré:** Micro-maré com distorção (amplitude < 2m)
+- **Nível Médio (NM):** 0.937 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_paranagua.py`
+- **Saída:** `paranagua_extremos_2020_2026.csv`
+- **⚠️ Observação:** Distorção por águas rasas (M4, MS4) e influência meteorológica
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -73,6 +82,13 @@ Os modelos utilizam constantes harmônicas incluindo:
 - Menor amplitude de maré entre todos os portos do projeto
 - Localizado em estuário, sofre influência de vazão fluvial
 - Estabelecimento de porto de 7h 28m
+
+**Porto de Paranaguá (PR):**
+- Micro-maré com distorção significativa (amplitude ~2m)
+- **Forte distorção de águas rasas:** constantes M4, MS4, M6 significativas
+- A forma da onda de maré se deforma ao entrar na Baía de Paranaguá
+- **Influência meteorológica:** ventos sul causam sobre-elevação
+- Ideal para estudos de ML: maré astronômica + vento como features
 
 ## Instalação
 
@@ -112,6 +128,11 @@ python previsao_mares_santos.py
 python previsao_mares_riograande.py
 ```
 
+**Porto de Paranaguá:**
+```bash
+python previsao_mares_paranagua.py
+```
+
 ### Opção 2: Usar script auxiliar interativo
 
 ```bash
@@ -149,6 +170,7 @@ mares/
 ├── previsao_mares_tgs.py        # Script Terminal Gás Sul
 ├── previsao_mares_santos.py     # Script Porto de Santos
 ├── previsao_mares_riograande.py # Script Porto do Rio Grande
+├── previsao_mares_paranagua.py  # Script Porto de Paranaguá
 ├── requirements.txt              # Dependências Python
 ├── run.sh                        # Script auxiliar de execução
 └── README.md                     # Esta documentação
@@ -173,6 +195,7 @@ mares/
 - Terminal Gás Sul: UTC-3
 - Porto de Santos: UTC-3
 - Porto do Rio Grande: UTC-3
+- Porto de Paranaguá: UTC-3
 
 ### Período de Validade
 - Previsões calculadas para 2020-2026
