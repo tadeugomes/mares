@@ -29,6 +29,15 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Saída:** `santos_extremos_2020_2026.csv`
 - **⚠️ Observação:** Efeitos meteorológicos (ressacas) podem elevar o nível em +1m
 
+### 4. Porto do Rio Grande (RS)
+- **Carta:** 2101 - Ficha 60380 (F-41)
+- **Tipo de Maré:** Maré Mista (micro-amplitude < 0.5m)
+- **Nível Médio (NM):** 0.858 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_riograande.py`
+- **Saída:** `riograande_extremos_2020_2026.csv`
+- **Estabelecimento de Porto:** 7h 28m
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -58,6 +67,12 @@ Os modelos utilizam constantes harmônicas incluindo:
 - **Forte influência meteorológica:** ressacas podem adicionar +1m ou mais
 - Frentes frias e ventos sul causam sobre-elevação significativa
 - Previsões astronômicas devem ser combinadas com previsões meteorológicas
+
+**Porto do Rio Grande (RS):**
+- Maré mista com amplitudes muito pequenas (< 0.5m)
+- Menor amplitude de maré entre todos os portos do projeto
+- Localizado em estuário, sofre influência de vazão fluvial
+- Estabelecimento de porto de 7h 28m
 
 ## Instalação
 
@@ -90,6 +105,11 @@ python previsao_mares_tgs.py
 **Porto de Santos:**
 ```bash
 python previsao_mares_santos.py
+```
+
+**Porto do Rio Grande:**
+```bash
+python previsao_mares_riograande.py
 ```
 
 ### Opção 2: Usar script auxiliar interativo
@@ -125,12 +145,13 @@ Cada script gera:
 
 ```
 mares/
-├── previsao_mares_itaqui.py    # Script Porto de Itaqui
-├── previsao_mares_tgs.py       # Script Terminal Gás Sul
-├── previsao_mares_santos.py    # Script Porto de Santos
-├── requirements.txt             # Dependências Python
-├── run.sh                       # Script auxiliar de execução
-└── README.md                    # Esta documentação
+├── previsao_mares_itaqui.py     # Script Porto de Itaqui
+├── previsao_mares_tgs.py        # Script Terminal Gás Sul
+├── previsao_mares_santos.py     # Script Porto de Santos
+├── previsao_mares_riograande.py # Script Porto do Rio Grande
+├── requirements.txt              # Dependências Python
+├── run.sh                        # Script auxiliar de execução
+└── README.md                     # Esta documentação
 ```
 
 ## Requisitos
@@ -151,6 +172,7 @@ mares/
 - Porto de Itaqui: UTC-3
 - Terminal Gás Sul: UTC-3
 - Porto de Santos: UTC-3
+- Porto do Rio Grande: UTC-3
 
 ### Período de Validade
 - Previsões calculadas para 2020-2026

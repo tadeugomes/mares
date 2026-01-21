@@ -33,10 +33,11 @@ echo ""
 echo "1) Porto de Itaqui (MA) - Macromaré"
 echo "2) Terminal Gás Sul (SC) - Micro-maré"
 echo "3) Porto de Santos (SP) - Micro-maré"
-echo "4) Todos"
+echo "4) Porto do Rio Grande (RS) - Maré Mista"
+echo "5) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-4]: " opcao
+read -p "Opção [1-5]: " opcao
 
 case $opcao in
     1)
@@ -66,6 +67,14 @@ case $opcao in
     4)
         echo ""
         echo "========================================="
+        echo "Calculando: Porto do Rio Grande (RS)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_riograande.py
+        ;;
+    5)
+        echo ""
+        echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
         echo "========================================="
         echo ""
@@ -87,6 +96,15 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_santos.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Porto do Rio Grande (RS)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_riograande.py
         fi
         ;;
     0)
