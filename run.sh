@@ -34,13 +34,14 @@ echo "1) Porto de Itaqui (MA) - Macromaré"
 echo "2) Terminal Gás Sul (SC) - Micro-maré"
 echo "3) Porto de Santos (SP) - Micro-maré"
 echo "4) Porto do Rio Grande (RS) - Maré Mista"
-echo "5) Porto de Paranaguá (PR) - Micro-maré"
+echo "5) Porto de Paranaguá Cais Leste/TCP (PR) - Micro-maré"
 echo "6) Ilha da Paz (SC) - Micro-maré"
 echo "7) Vila do Conde (PA) - Grande amplitude"
-echo "8) Todos"
+echo "8) Paranaguá Cais Oeste I (PR) - Micro-maré"
+echo "9) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-8]: " opcao
+read -p "Opção [1-9]: " opcao
 
 case $opcao in
     1)
@@ -102,6 +103,14 @@ case $opcao in
     8)
         echo ""
         echo "========================================="
+        echo "Calculando: Paranaguá Cais Oeste I (PR)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_paranagua_cais_oeste.py
+        ;;
+    9)
+        echo ""
+        echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
         echo "========================================="
         echo ""
@@ -159,6 +168,15 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_viladoconde.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Paranaguá Cais Oeste I (PR)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_paranagua_cais_oeste.py
         fi
         ;;
     0)

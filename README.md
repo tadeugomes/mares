@@ -69,6 +69,18 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **⚠️ Observação:** Forte influência fluvial (Amazonas/Tocantins) e distorção de águas rasas
 - **Nota:** Segunda maior amplitude do projeto, assimetria pronunciada (sobe mais rápido que desce)
 
+### 8. Paranaguá Cais Oeste I (PR)
+- **Ficha:** 60151
+- **Tipo de Maré:** Micro-maré com distorção (amplitude < 2m)
+- **Nível Médio (NM):** 0.916 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_paranagua_cais_oeste.py`
+- **Saída:** `paranagua_cais_oeste_extremos_2020_2026.csv`
+- **Localização:** Interior da Baía de Paranaguá (mais para oeste)
+- **Par com:** Paranaguá Cais Leste/TCP (Ficha 60141)
+- **⚠️ Observação:** Complementa Cais Leste para modelagem de gradiente e propagação no canal
+- **Para ML:** Lag temporal entre Cais Oeste e Cais Leste permite prever velocidade de propagação da onda de maré
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -110,7 +122,11 @@ Os modelos utilizam constantes harmônicas incluindo:
 - **Forte distorção de águas rasas:** constantes M4, MS4, M6 significativas
 - A forma da onda de maré se deforma ao entrar na Baía de Paranaguá
 - **Influência meteorológica:** ventos sul causam sobre-elevação
-- Ideal para estudos de ML: maré astronômica + vento como features
+- **Duas estações disponíveis:**
+  - **Cais Leste/TCP (Ficha 60141):** NM = 0.937m, mais próximo da entrada da baía
+  - **Cais Oeste I (Ficha 60151):** NM = 0.916m, mais para o interior da baía
+- **Gradiente e propagação:** Diferença de fase entre as estações permite calcular velocidade de propagação da onda de maré no canal de acesso
+- Ideal para estudos de ML: maré astronômica + vento como features + lag temporal entre estações
 
 **Ilha da Paz - São Francisco do Sul (SC):**
 - Micro-maré oceânica (amplitude ~1.5m)
@@ -171,6 +187,11 @@ python previsao_mares_riograande.py
 python previsao_mares_paranagua.py
 ```
 
+**Porto de Paranaguá - Cais Oeste I:**
+```bash
+python previsao_mares_paranagua_cais_oeste.py
+```
+
 **Ilha da Paz:**
 ```bash
 python previsao_mares_ilhadapaz.py
@@ -214,16 +235,17 @@ Cada script gera:
 
 ```
 mares/
-├── previsao_mares_itaqui.py      # Script Porto de Itaqui
-├── previsao_mares_tgs.py         # Script Terminal Gás Sul
-├── previsao_mares_santos.py      # Script Porto de Santos
-├── previsao_mares_riograande.py  # Script Porto do Rio Grande
-├── previsao_mares_paranagua.py   # Script Porto de Paranaguá
-├── previsao_mares_ilhadapaz.py   # Script Ilha da Paz
-├── previsao_mares_viladoconde.py # Script Vila do Conde
-├── requirements.txt               # Dependências Python
-├── run.sh                         # Script auxiliar de execução
-└── README.md                      # Esta documentação
+├── previsao_mares_itaqui.py              # Script Porto de Itaqui
+├── previsao_mares_tgs.py                 # Script Terminal Gás Sul
+├── previsao_mares_santos.py              # Script Porto de Santos
+├── previsao_mares_riograande.py          # Script Porto do Rio Grande
+├── previsao_mares_paranagua.py           # Script Porto de Paranaguá (Cais Leste/TCP)
+├── previsao_mares_paranagua_cais_oeste.py # Script Paranaguá Cais Oeste I
+├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
+├── previsao_mares_viladoconde.py         # Script Vila do Conde
+├── requirements.txt                       # Dependências Python
+├── run.sh                                 # Script auxiliar de execução
+└── README.md                              # Esta documentação
 ```
 
 ## Requisitos
@@ -274,7 +296,28 @@ lag_ilha_porto = tempo_preamar_porto_interno - tempo_preamar_ilha_da_paz
 
 ### Outras Aplicações de ML
 
-**Porto de Paranaguá:**
+**Porto de Paranaguá - Modelagem de Gradiente:**
+
+Ter duas estações em Paranaguá (Cais Leste/TCP e Cais Oeste I) permite modelar o gradiente de pressão e o tempo de deslocamento da massa de água dentro do canal de acesso:
+
+```python
+# Feature de lag temporal entre estações
+lag_cais = tempo_preamar_oeste - tempo_preamar_leste
+
+# Feature de gradiente de altura
+gradiente_altura = altura_leste - altura_oeste
+
+# Velocidade de propagação da onda de maré no canal
+velocidade_propagacao = distancia_entre_estacoes / lag_cais
+```
+
+**Aplicações práticas:**
+- Prever condições de corrente no canal de acesso
+- Otimizar janelas de manobra para navios de grande porte
+- Estimar tempo de chegada da maré em diferentes pontos do porto
+- Corrigir efeitos de atrito e distorção ao longo do canal
+
+**Porto de Paranaguá - Correções Meteorológicas:**
 - Feature principal: Previsão astronômica (este projeto)
 - Feature de erro: Intensidade e direção do vento
 - Target: Altura real observada
