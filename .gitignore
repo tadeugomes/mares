@@ -23,11 +23,6 @@ wheels/
 .installed.cfg
 *.egg
 
-# Output files
-*.csv
-*.xlsx
-*.xls
-
 # IDEs
 .vscode/
 .idea/
