@@ -6,57 +6,103 @@ Ficha 60266 - Terminal Gás Sul, São Francisco do Sul (SC)
 """
 
 import pandas as pd
-from datetime import datetime
-from pytides.tide import Tide
-import pytides.constituent as cons
+import numpy as np
+from datetime import datetime, timedelta
 
 # 1. Cadastro das Constantes Harmônicas (Ficha 60266 - Terminal Gás Sul)
-# Valores de H (Amplitude) e G (Fase) específicos de São Francisco do Sul
-constituent_data = {
-    'M2': (0.286, 77.26), 'S2': (0.245, 78.33), 'O1': (0.117, 45.42),
-    'K1': (0.180, 54.76), 'N2': (0.052, 57.08), 'M4': (0.016, 215.11),
-    'MS4': (0.017, 237.95), 'M6': (0.012, 194.57), 'MK3': (0.007, 185.73),
-    'S4': (0.005, 305.86), 'MN4': (0.005, 172.50), 'NU2': (0.011, 51.52),
-    'S1': (0.027, 26.27), 'MU2': (0.010, 24.38), '2N2': (0.007, 36.89),
-    'OO1': (0.006, 64.09), 'LAM2': (0.002, 116.82), 'S6': (0.005, 306.96),
-    'M8': (0.004, 273.66), 'M3': (0.004, 335.70), 'MF': (0.038, 301.99),
-    'MM': (0.024, 226.54), 'SSA': (0.063, 172.90), 'SA': (0.084, 184.81),
-    'MSF': (0.033, 49.33), 'Q1': (0.023, 38.08), 'P1': (0.060, 54.76)
+# Valores de H (Amplitude em metros) e G (Fase em graus)
+constituents = {
+    'M2': {'speed': 28.984104, 'H': 0.286, 'G': 77.26},    # Principal lunar semidiurnal
+    'S2': {'speed': 30.000000, 'H': 0.245, 'G': 78.33},    # Principal solar semidiurnal
+    'O1': {'speed': 13.943035, 'H': 0.117, 'G': 45.42},    # Lunar diurnal
+    'K1': {'speed': 15.041069, 'H': 0.180, 'G': 54.76},    # Lunisolar diurnal
+    'N2': {'speed': 28.439730, 'H': 0.052, 'G': 57.08},    # Larger lunar elliptic
+    'M4': {'speed': 57.968208, 'H': 0.016, 'G': 215.11},   # Shallow water overtide
+    'MS4': {'speed': 58.984104, 'H': 0.017, 'G': 237.95},  # Shallow water quarter diurnal
+    'M6': {'speed': 86.952312, 'H': 0.012, 'G': 194.57},   # Shallow water overtide
+    'MK3': {'speed': 44.025173, 'H': 0.007, 'G': 185.73},  # Shallow water terdiurnal
+    'S4': {'speed': 60.000000, 'H': 0.005, 'G': 305.86},   # Shallow water overtide
+    'MN4': {'speed': 57.423834, 'H': 0.005, 'G': 172.50},  # Shallow water quarter diurnal
+    'NU2': {'speed': 28.512583, 'H': 0.011, 'G': 51.52},   # Larger lunar evectional
+    'S1': {'speed': 15.000000, 'H': 0.027, 'G': 26.27},    # Solar diurnal
+    'MU2': {'speed': 27.968208, 'H': 0.010, 'G': 24.38},   # Variational
+    '2N2': {'speed': 27.895355, 'H': 0.007, 'G': 36.89},   # Lunar elliptical semidiurnal
+    'OO1': {'speed': 16.139101, 'H': 0.006, 'G': 64.09},   # Lunar diurnal
+    'LAM2': {'speed': 29.455626, 'H': 0.002, 'G': 116.82}, # Smaller lunar evectional
+    'S6': {'speed': 90.000000, 'H': 0.005, 'G': 306.96},   # Shallow water overtide
+    'M8': {'speed': 115.936416, 'H': 0.004, 'G': 273.66},  # Shallow water eighth diurnal
+    'M3': {'speed': 43.476156, 'H': 0.004, 'G': 335.70},   # Lunar terdiurnal
+    'MF': {'speed': 1.098033, 'H': 0.038, 'G': 301.99},    # Lunisolar fortnightly
+    'MM': {'speed': 0.544375, 'H': 0.024, 'G': 226.54},    # Lunar monthly
+    'SSA': {'speed': 0.082137, 'H': 0.063, 'G': 172.90},   # Solar semiannual
+    'SA': {'speed': 0.041069, 'H': 0.084, 'G': 184.81},    # Solar annual
+    'MSF': {'speed': 1.015896, 'H': 0.033, 'G': 49.33},    # Lunisolar synodic fortnightly
+    'Q1': {'speed': 13.398661, 'H': 0.023, 'G': 38.08},    # Larger lunar elliptic diurnal
+    'P1': {'speed': 14.958931, 'H': 0.060, 'G': 54.76},    # Solar diurnal
 }
 
-# Transformando para objetos que a biblioteca reconhece
-consts, amps, phs = [], [], []
-for name, (a, p) in constituent_data.items():
-    if hasattr(cons, name):  # Verifica se a biblioteca suporta a componente
-        consts.append(getattr(cons, name))
-        amps.append(a)
-        phs.append(p)
-
-# 2. Configuração do Modelo
-tide_model = Tide(constituents=consts, amplitudes=amps, phases=phs)
 NM = 1.11  # Nível Médio da Ficha 60266 (Terminal Gás Sul)
 
-# 3. Cálculo de Extremos (Preamar e Baixa-mar) 2020-2026
+# 2. Função para calcular altura de maré em um momento específico
+def calculate_tide(dt, constituents, nm):
+    """Calcula a altura da maré para um datetime específico"""
+    # Referência: 1 de janeiro de 2000, 00:00 UTC
+    ref_date = datetime(2000, 1, 1, 0, 0, 0)
+    hours = (dt - ref_date).total_seconds() / 3600.0
+
+    height = nm  # Começa com o nível médio
+
+    for name, data in constituents.items():
+        speed = data['speed']  # graus por hora
+        H = data['H']  # amplitude em metros
+        G = data['G']  # fase em graus
+
+        # Calcula a contribuição desta componente
+        phase = speed * hours - G
+        height += H * np.cos(np.radians(phase))
+
+    return height
+
+# 3. Gerar série temporal e encontrar extremos
+print("Processando extremos de maré para Terminal Gás Sul...")
+print("(isso pode levar alguns segundos)")
+
 start = datetime(2020, 1, 1)
 end = datetime(2026, 12, 31, 23, 59)
 
-print("Processando extremos de maré para Terminal Gás Sul...")
-print("(isso pode levar alguns segundos)")
-extrema = tide_model.extrema(start, end)
+# Calcular com resolução de 10 minutos
+current_time = start
+delta = timedelta(minutes=10)
 
-# 4. Criando a lista de resultados
-resultados = []
-for time, height in extrema:
-    real_height = height + NM
-    # Identifica se é Preamar ou Baixa-mar comparando com o ponto anterior/seguinte
-    resultados.append({
-        'Data_Hora': time,
-        'Altura_m': round(real_height, 2),
-        'Evento': 'Preamar' if height > 0 else 'Baixa-mar'
-    })
+times = []
+heights = []
 
-# 5. Exportando para DataFrame
-df_tgs = pd.DataFrame(resultados)
+while current_time <= end:
+    h = calculate_tide(current_time, constituents, 0)  # Calcula sem NM para identificar extremos
+    times.append(current_time)
+    heights.append(h)
+    current_time += delta
+
+# Encontrar extremos (máximos e mínimos locais)
+extrema = []
+for i in range(1, len(heights) - 1):
+    # Máximo local (Preamar)
+    if heights[i] > heights[i-1] and heights[i] > heights[i+1]:
+        extrema.append({
+            'Data_Hora': times[i],
+            'Altura_m': round(heights[i] + NM, 2),
+            'Evento': 'Preamar'
+        })
+    # Mínimo local (Baixa-mar)
+    elif heights[i] < heights[i-1] and heights[i] < heights[i+1]:
+        extrema.append({
+            'Data_Hora': times[i],
+            'Altura_m': round(heights[i] + NM, 2),
+            'Evento': 'Baixa-mar'
+        })
+
+# 4. Criar DataFrame
+df_tgs = pd.DataFrame(extrema)
 
 # Visualização
 print("\n=== Primeiras 20 previsões ===")
