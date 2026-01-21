@@ -14,7 +14,7 @@ fi
 
 # Verificar se as dependências estão instaladas
 echo "Verificando dependências..."
-python3 -c "import pandas, pytides" 2>/dev/null
+python3 -c "import pandas, numpy" 2>/dev/null
 
 if [ $? -ne 0 ]; then
     echo "Instalando dependências..."
@@ -32,10 +32,11 @@ echo "Escolha o porto para calcular previsões:"
 echo ""
 echo "1) Porto de Itaqui (MA) - Macromaré"
 echo "2) Terminal Gás Sul (SC) - Micro-maré"
-echo "3) Ambos"
+echo "3) Porto de Santos (SP) - Micro-maré"
+echo "4) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-3]: " opcao
+read -p "Opção [1-4]: " opcao
 
 case $opcao in
     1)
@@ -57,6 +58,14 @@ case $opcao in
     3)
         echo ""
         echo "========================================="
+        echo "Calculando: Porto de Santos (SP)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_santos.py
+        ;;
+    4)
+        echo ""
+        echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
         echo "========================================="
         echo ""
@@ -69,6 +78,15 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_tgs.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Porto de Santos (SP)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_santos.py
         fi
         ;;
     0)

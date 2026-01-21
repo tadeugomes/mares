@@ -20,6 +20,15 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Script:** `previsao_mares_tgs.py`
 - **Saída:** `tgs_extremos_2020_2026.csv`
 
+### 3. Porto de Santos (SP)
+- **Carta:** 1712 - Ficha 50231 (TIPLAM)
+- **Tipo de Maré:** Micro-maré (amplitude < 2m)
+- **Nível Médio (NM):** 0.736 m
+- **Constantes:** 28 componentes harmônicas
+- **Script:** `previsao_mares_santos.py`
+- **Saída:** `santos_extremos_2020_2026.csv`
+- **⚠️ Observação:** Efeitos meteorológicos (ressacas) podem elevar o nível em +1m
+
 ## Descrição
 
 Este projeto calcula os extremos de maré (preamares e baixa-mares) para diferentes portos brasileiros no período de 2020 a 2026, utilizando análise harmônica de componentes de maré.
@@ -44,6 +53,12 @@ Os modelos utilizam constantes harmônicas incluindo:
 - Influência meteorológica proporcionalmente maior
 - Variações mais sutis e regulares
 
+**Porto de Santos (SP):**
+- Micro-maré com amplitudes pequenas (geralmente 0.2m a 1.5m)
+- **Forte influência meteorológica:** ressacas podem adicionar +1m ou mais
+- Frentes frias e ventos sul causam sobre-elevação significativa
+- Previsões astronômicas devem ser combinadas com previsões meteorológicas
+
 ## Instalação
 
 ### 1. Instalar dependências
@@ -55,7 +70,7 @@ pip install -r requirements.txt
 Ou instalar manualmente:
 
 ```bash
-pip install pandas pytides numpy
+pip install pandas numpy
 ```
 
 ## Uso
@@ -70,6 +85,11 @@ python previsao_mares_itaqui.py
 **Terminal Gás Sul:**
 ```bash
 python previsao_mares_tgs.py
+```
+
+**Porto de Santos:**
+```bash
+python previsao_mares_santos.py
 ```
 
 ### Opção 2: Usar script auxiliar interativo
@@ -107,6 +127,7 @@ Cada script gera:
 mares/
 ├── previsao_mares_itaqui.py    # Script Porto de Itaqui
 ├── previsao_mares_tgs.py       # Script Terminal Gás Sul
+├── previsao_mares_santos.py    # Script Porto de Santos
 ├── requirements.txt             # Dependências Python
 ├── run.sh                       # Script auxiliar de execução
 └── README.md                    # Esta documentação
@@ -116,7 +137,6 @@ mares/
 
 - Python 3.7+
 - pandas >= 1.3.0
-- pytides >= 0.0.6
 - numpy >= 1.20.0
 
 ## Observações Técnicas
@@ -130,6 +150,7 @@ mares/
 - Os horários são calculados em UTC
 - Porto de Itaqui: UTC-3
 - Terminal Gás Sul: UTC-3
+- Porto de Santos: UTC-3
 
 ### Período de Validade
 - Previsões calculadas para 2020-2026
