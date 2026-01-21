@@ -277,10 +277,27 @@ mares/
 
 ## Observações Técnicas
 
-### Precisão
-- As previsões são baseadas exclusivamente em componentes astronômicas
-- Não incluem efeitos meteorológicos (vento, pressão atmosférica)
-- Para navegação oficial, sempre consulte as Tábuas de Marés da DHN
+### Precisão e Limitações
+
+**Previsões Astronômicas (este projeto):**
+- ✅ Baseadas exclusivamente em componentes astronômicas (Lua, Sol)
+- ❌ **NÃO incluem** efeitos meteorológicos (vento, pressão atmosférica)
+- ❌ **NÃO incluem** efeitos fluviais (vazão de rios)
+- ❌ **NÃO incluem** efeitos de ondas (ressacas)
+
+**Quando usar este projeto:**
+- ✅ Portos oceânicos e costeiros (baseline confiável)
+- ✅ Portos estuarinos como **baseline** + correções de ML
+- ✅ Estudo de propagação de marés em baías
+- ✅ Feature engineering para modelos de ML
+
+**Quando NÃO usar (ou usar com muito cuidado):**
+- ⚠️ Portos puramente fluviais (ex: Manaus) - maré astronômica é insignificante
+- ⚠️ Períodos de ressaca (Santos, Rio de Janeiro) - erro pode ser >1m
+- ⚠️ Períodos de cheia na Amazônia (Vila do Conde) - vazão domina
+- ⚠️ Vento sul forte (Rio Grande, Santos) - sobre-elevação significativa
+
+**Para navegação oficial:** Sempre consulte as Tábuas de Marés da DHN
 
 ### Fuso Horário
 - Os horários são calculados em UTC
@@ -296,6 +313,29 @@ mares/
 ### Período de Validade
 - Previsões calculadas para 2020-2026
 - As constantes harmônicas são atualizadas periodicamente pela DHN
+
+### Como Identificar se um Porto tem Maré Astronômica Significativa
+
+**Indicadores de que o porto TEM maré astronômica (análise harmônica é válida):**
+- ✅ Amplitude M2 > 0.05m (quanto maior, mais confiável)
+- ✅ Componentes semidiurnas (M2, S2) são as maiores do espectro
+- ✅ Localizado < 100km da costa (varia por estuário)
+- ✅ DHN publica Tábua de Marés para o local
+- ✅ Variação de nível tem período dominante de ~12.4h
+
+**Indicadores de porto PURAMENTE fluvial (análise harmônica NÃO funciona):**
+- ❌ Amplitude M2 < 0.01m (praticamente zero)
+- ❌ Localizado muito longe da costa (>200km rio acima)
+- ❌ Variação dominante é sazonal (meses, não horas)
+- ❌ DHN não publica tábuas de marés para o local
+- ❌ Variação de nível correlaciona com precipitação/vazão, não com fase da Lua
+
+**Exemplos de portos puramente fluviais no Brasil:**
+- Manaus (AM) - Variação ~10-15m anual, 100% fluvial
+- Porto Velho (RO) - Variação fluvial
+- Corumbá (MS) - Variação fluvial (Pantanal)
+
+Para esses portos, você precisa de um **modelo hidrológico**, não harmônico.
 
 ## Aplicações em Machine Learning
 
@@ -352,6 +392,275 @@ velocidade_propagacao = distancia_total_baia / lag_total
 - Corrigir efeitos de atrito, distorção e amplificação ao longo da baía
 - Modelar efeito funil: como o estreitamento da baía amplifica a maré
 - Prever inundações no fundo da baía (Antonina) com base em observações na entrada (Cais Leste)
+
+---
+
+## Variáveis Complementares para Machine Learning
+
+As previsões astronômicas (fornecidas por este projeto) são apenas o **baseline**. Para portos estuarinos e costeiros, você precisa de variáveis adicionais para capturar desvios causados por rios, vento, pressão e ondas.
+
+### 📊 Classificação dos Portos e Variáveis Necessárias
+
+#### **Tipo 1: Portos Oceânicos/Costeiros**
+**Exemplos:** Itaqui (MA), Santos (SP), Ilha da Paz (SC)
+
+**Variáveis necessárias:**
+
+| Variável | Importância | Fonte de Dados (Brasil) | Detalhes |
+|----------|-------------|-------------------------|----------|
+| **Maré astronômica** | ⭐⭐⭐⭐⭐ | Este projeto | Baseline principal |
+| **Vento (vel. e dir.)** | ⭐⭐⭐⭐ | INMET, Copernicus Marine | Ventos sul causam sobre-elevação |
+| **Pressão atmosférica** | ⭐⭐⭐ | INMET | Efeito de barômetro invertido (~1cm/hPa) |
+| **Altura de onda** | ⭐⭐⭐ | Copernicus Marine, SMC-Brasil | Ressacas podem adicionar +1m |
+| **Período de onda** | ⭐⭐ | Copernicus Marine | Ondas longas penetram mais no porto |
+
+**Exemplo: Porto de Santos**
+```python
+features = {
+    'mare_astronomica': altura_prevista_harmonica,      # Este projeto
+    'vento_sul_intensidade': max(vel_vento_sul_48h),   # INMET
+    'vento_sul_persistencia': horas_vento_sul,         # INMET
+    'pressao_atm': pressao_atual - pressao_media,      # INMET (anomalia)
+    'altura_onda_significativa': Hs,                    # Copernicus/SMC
+    'periodo_onda': Tp,                                 # Copernicus
+    'frente_fria': booleano_frente_proximas_48h,      # CPTEC/INPE
+}
+```
+
+---
+
+#### **Tipo 2: Portos Estuarinos com Influência Fluvial Moderada**
+**Exemplos:** Rio Grande (RS), Paranaguá (PR), Antonina (PR)
+
+**Variáveis necessárias:**
+
+| Variável | Importância | Fonte de Dados (Brasil) | Detalhes |
+|----------|-------------|-------------------------|----------|
+| **Maré astronômica** | ⭐⭐⭐⭐ | Este projeto | Ainda dominante |
+| **Vazão fluvial** | ⭐⭐⭐⭐ | ANA (HidroWeb) | Pode adicionar +0.2 a +0.5m ao NM |
+| **Vento (vel. e dir.)** | ⭐⭐⭐⭐ | INMET | Vento sul "empurra" água para dentro |
+| **Precipitação (bacia)** | ⭐⭐⭐ | ANA, INMET | Indica vazão futura |
+| **Pressão atmosférica** | ⭐⭐ | INMET | Menos relevante que vento |
+
+**Exemplo: Porto do Rio Grande (RS)**
+```python
+features = {
+    'mare_astronomica': altura_prevista_harmonica,         # Este projeto (pequena)
+    'vazao_lagoa_dos_patos': vazao_m3_s,                  # ANA (estações próximas)
+    'vento_sul_vel': velocidade_vento_sul,                # INMET Rio Grande
+    'vento_sul_duracao': horas_consecutivas_vento_sul,    # INMET
+    'chuva_bacia_30d': precipitacao_acumulada_30dias,     # ANA/INMET (bacia)
+    'nivel_lagoa_guaiba': nivel_agua_guaiba,              # ANA (montante)
+    'mare_meteorologica': desvio_observado - astronomico, # Calcular com dados históricos
+}
+```
+
+**Exemplo: Antonina (PR)**
+```python
+features = {
+    'mare_astronomica_antonina': altura_prevista_harmonica,     # Este projeto
+    'mare_astronomica_cais_leste': altura_cais_leste,          # Sentinel (propagação)
+    'lag_temporal': tempo_preamar_leste - tempo_preamar_antonina, # Feature chave
+    'vazao_rios_locais': vazao_rios_pequenos_bacia,            # ANA (se disponível)
+    'vento_sul_vel': velocidade_vento_sul,                     # INMET Paranaguá
+    'chuva_local_7d': precipitacao_acumulada_7dias,            # INMET
+}
+```
+
+---
+
+#### **Tipo 3: Portos em Foz de Grandes Rios (Híbrido Complexo)**
+**Exemplos:** Vila do Conde (PA)
+
+**Variáveis necessárias:**
+
+| Variável | Importância | Fonte de Dados (Brasil) | Detalhes |
+|----------|-------------|-------------------------|----------|
+| **Maré astronômica** | ⭐⭐⭐⭐ | Este projeto | Base, mas vazão pode dominar |
+| **Vazão Rio Amazonas** | ⭐⭐⭐⭐⭐ | ANA (Óbidos) | CRÍTICO - pode adicionar +2m na cheia |
+| **Vazão Rio Tocantins** | ⭐⭐⭐⭐ | ANA (Tucuruí) | Contribui significativamente |
+| **Precipitação Amazônia** | ⭐⭐⭐ | ANA, INMET, CHIRPS | Indica vazão futura (lag ~30-60 dias) |
+| **Sazonalidade** | ⭐⭐⭐⭐ | Mês do ano | Cheia (mar-mai) vs Seca (set-nov) |
+| **Vento local** | ⭐⭐ | INMET Belém/Barcarena | Menos relevante que vazão |
+
+**Exemplo: Vila do Conde (PA)**
+```python
+features = {
+    # Astronômica (baseline)
+    'mare_astronomica': altura_prevista_harmonica,           # Este projeto
+
+    # Fluvial (DOMINANTE em alguns períodos)
+    'vazao_amazonas_obidos': vazao_m3_s,                    # ANA (Óbidos - estação 15400000)
+    'vazao_tocantins_tucurui': vazao_m3_s,                  # ANA (Tucuruí)
+    'vazao_total': vazao_amazonas + vazao_tocantins,
+
+    # Sazonalidade
+    'mes': mes_do_ano,                                       # 1-12
+    'estacao_hidrologica': 'cheia' | 'vazante' | 'seca',    # Classificação
+
+    # Precipitação (feature antecedente)
+    'chuva_amazonia_30d': precip_acumulada_bacia_30d,       # CHIRPS/ANA
+    'chuva_amazonia_60d': precip_acumulada_bacia_60d,       # Lag maior
+
+    # Meteorológico
+    'vento_vel': velocidade_vento,                           # INMET
+    'pressao': pressao_atm,                                  # INMET
+
+    # Target
+    'nivel_observado': altura_real_medida,                   # Régua/Sensor local
+}
+
+# Modelo de correção
+desvio_fluvial = modelo_ML.predict(features) - mare_astronomica
+nivel_final = mare_astronomica + desvio_fluvial
+```
+
+---
+
+### 🌐 Fontes de Dados Brasileiras
+
+#### **1. Dados Fluviais (Vazão e Nível)**
+
+**ANA - Agência Nacional de Águas**
+- **Site:** https://www.snirh.gov.br/hidroweb/
+- **Dados:** Vazão (m³/s), Nível (cm), Precipitação
+- **Formato:** CSV, API REST
+- **Cobertura:** ~4.500 estações fluviométricas no Brasil
+
+**Principais estações para o projeto:**
+
+| Porto | Rio/Bacia | Estação ANA | Código |
+|-------|-----------|-------------|--------|
+| Vila do Conde | Amazonas | Óbidos | 15400000 |
+| Vila do Conde | Tocantins | Tucuruí | 29280000 |
+| Rio Grande | Lagoa dos Patos | São Gonçalo | 87560000 |
+| Antonina | Rios locais PR | Antonina (se existir) | Consultar HidroWeb |
+
+**Como acessar:**
+```python
+# Exemplo com API HidroWeb
+import requests
+
+url = "http://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos"
+params = {
+    'codEstacao': '15400000',  # Óbidos
+    'dataInicio': '01/01/2020',
+    'dataFim': '31/12/2026'
+}
+response = requests.get(url, params=params)
+```
+
+---
+
+#### **2. Dados Meteorológicos**
+
+**INMET - Instituto Nacional de Meteorologia**
+- **Site:** https://portal.inmet.gov.br/
+- **API:** https://apitempo.inmet.gov.br/
+- **Dados:** Vento (vel/dir), Pressão, Temperatura, Precipitação
+- **Frequência:** Horária (automáticas) ou diária (convencionais)
+- **Formato:** JSON, CSV
+
+**Estações próximas aos portos:**
+
+| Porto | Estação INMET | Código |
+|-------|---------------|--------|
+| Santos | Santos (Ponta da Praia) | A701 |
+| Rio Grande | Rio Grande | A802 |
+| Paranaguá | Paranaguá | A851 |
+| Itaqui | São Luís | A201 |
+| Vila do Conde | Belém | A201 |
+
+**Exemplo de uso da API:**
+```python
+import requests
+
+url = "https://apitempo.inmet.gov.br/estacao/dados/A701"
+params = {'dataInicio': '2020-01-01', 'dataFim': '2026-12-31'}
+headers = {'Authorization': 'Bearer SEU_TOKEN'}
+
+response = requests.get(url, params=params, headers=headers)
+data = response.json()
+
+# Extrair features
+vento_sul = [x for x in data if x['VEN_DIR'] > 135 and x['VEN_DIR'] < 225]
+```
+
+---
+
+#### **3. Dados Oceanográficos**
+
+**Copernicus Marine Service**
+- **Site:** https://marine.copernicus.eu/
+- **Dados:** Altura de onda (Hs), Período (Tp), Direção, Correntes
+- **Cobertura:** Oceano Atlântico Sul (costa brasileira)
+- **Formato:** NetCDF
+- **Gratuito:** Sim (requer cadastro)
+
+**SMC-Brasil (Sistema de Modelagem Costeira)**
+- **Site:** http://smcbrasil.cnpq.br/
+- **Dados:** Ondas, marés, correntes (modelados para costa BR)
+
+---
+
+#### **4. Dados de Precipitação (Bacia Amazônica)**
+
+**CHIRPS - Climate Hazards Group InfraRed Precipitation**
+- **Site:** https://www.chc.ucsb.edu/data/chirps
+- **Dados:** Precipitação em grade (0.05° resolução)
+- **Cobertura:** Global, incluindo Amazônia
+- **Formato:** GeoTIFF, NetCDF
+- **Uso:** Calcular precipitação acumulada em bacias hidrográficas
+
+---
+
+### 📈 Workflow de Machine Learning Completo
+
+```python
+# 1. Carregar previsão astronômica (este projeto)
+df_astro = pd.read_csv('viladoconde_extremos_2020_2026.csv')
+
+# 2. Buscar dados fluviais (ANA)
+vazao_amazonas = buscar_vazao_ana(estacao='15400000', inicio='2020-01-01', fim='2026-12-31')
+vazao_tocantins = buscar_vazao_ana(estacao='29280000', inicio='2020-01-01', fim='2026-12-31')
+
+# 3. Buscar dados meteorológicos (INMET)
+meteo = buscar_inmet(estacao='A201', inicio='2020-01-01', fim='2026-12-31')
+
+# 4. Buscar precipitação de bacia (CHIRPS ou ANA)
+chuva_amazonia = buscar_precipitacao_bacia(bacia='amazonia', dias=30)
+
+# 5. Criar dataset de features
+features = pd.DataFrame({
+    'data': df_astro['Data_Hora'],
+    'mare_astro': df_astro['Altura_m'],
+    'vazao_amazonas': vazao_amazonas,
+    'vazao_tocantins': vazao_tocantins,
+    'vazao_total': vazao_amazonas + vazao_tocantins,
+    'vento_vel': meteo['VEN_VEL'],
+    'vento_dir': meteo['VEN_DIR'],
+    'pressao': meteo['PRE_INS'],
+    'chuva_30d': chuva_amazonia.rolling(30).sum(),
+    'mes': pd.to_datetime(df_astro['Data_Hora']).dt.month,
+})
+
+# 6. Buscar observações reais (régua/sensor do porto)
+observacoes = buscar_observacoes_porto('viladoconde')
+
+# 7. Treinar modelo
+from sklearn.ensemble import RandomForestRegressor
+
+X = features[['mare_astro', 'vazao_total', 'vento_vel', 'pressao', 'chuva_30d', 'mes']]
+y = observacoes['nivel_real']
+
+modelo = RandomForestRegressor(n_estimators=100)
+modelo.fit(X, y)
+
+# 8. Prever com correções
+previsao_final = modelo.predict(X)
+```
+
+---
 
 **Porto de Paranaguá - Correções Meteorológicas:**
 - Feature principal: Previsão astronômica (este projeto)
