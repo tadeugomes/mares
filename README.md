@@ -616,48 +616,350 @@ vento_sul = [x for x in data if x['VEN_DIR'] > 135 and x['VEN_DIR'] < 225]
 
 ### 📈 Workflow de Machine Learning Completo
 
+#### **Fase 1: Treinamento do Modelo (Dados Históricos)**
+
+Para treinar o modelo, você precisa de dados **HISTÓRICOS** tanto das features quanto do target:
+
 ```python
-# 1. Carregar previsão astronômica (este projeto)
+# FASE DE TREINAMENTO - Usa dados PASSADOS
+
+# 1. Carregar previsão astronômica (este projeto) - HISTÓRICO 2020-2023
 df_astro = pd.read_csv('viladoconde_extremos_2020_2026.csv')
+df_astro_treino = df_astro[df_astro['Data_Hora'] < '2024-01-01']  # Só até 2023
 
-# 2. Buscar dados fluviais (ANA)
-vazao_amazonas = buscar_vazao_ana(estacao='15400000', inicio='2020-01-01', fim='2026-12-31')
-vazao_tocantins = buscar_vazao_ana(estacao='29280000', inicio='2020-01-01', fim='2026-12-31')
+# 2. Buscar dados fluviais HISTÓRICOS (ANA) - 2020-2023
+vazao_amazonas = buscar_vazao_ana(estacao='15400000', inicio='2020-01-01', fim='2023-12-31')
+vazao_tocantins = buscar_vazao_ana(estacao='29280000', inicio='2020-01-01', fim='2023-12-31')
 
-# 3. Buscar dados meteorológicos (INMET)
-meteo = buscar_inmet(estacao='A201', inicio='2020-01-01', fim='2026-12-31')
+# 3. Buscar dados meteorológicos OBSERVADOS (INMET) - 2020-2023
+meteo = buscar_inmet(estacao='A201', inicio='2020-01-01', fim='2023-12-31')
 
-# 4. Buscar precipitação de bacia (CHIRPS ou ANA)
-chuva_amazonia = buscar_precipitacao_bacia(bacia='amazonia', dias=30)
+# 4. Buscar precipitação HISTÓRICA (CHIRPS ou ANA) - 2020-2023
+chuva_amazonia = buscar_precipitacao_bacia(bacia='amazonia', inicio='2020-01-01', fim='2023-12-31')
 
 # 5. Criar dataset de features
-features = pd.DataFrame({
-    'data': df_astro['Data_Hora'],
-    'mare_astro': df_astro['Altura_m'],
-    'vazao_amazonas': vazao_amazonas,
-    'vazao_tocantins': vazao_tocantins,
+features_treino = pd.DataFrame({
+    'data': df_astro_treino['Data_Hora'],
+    'mare_astro': df_astro_treino['Altura_m'],
     'vazao_total': vazao_amazonas + vazao_tocantins,
     'vento_vel': meteo['VEN_VEL'],
-    'vento_dir': meteo['VEN_DIR'],
     'pressao': meteo['PRE_INS'],
     'chuva_30d': chuva_amazonia.rolling(30).sum(),
-    'mes': pd.to_datetime(df_astro['Data_Hora']).dt.month,
+    'mes': pd.to_datetime(df_astro_treino['Data_Hora']).dt.month,
 })
 
-# 6. Buscar observações reais (régua/sensor do porto)
-observacoes = buscar_observacoes_porto('viladoconde')
+# 6. CRÍTICO: Buscar observações REAIS (régua/sensor do porto) - 2020-2023
+#    Você precisa do nível de água que REALMENTE aconteceu para treinar!
+observacoes_historicas = buscar_observacoes_porto_historicas('viladoconde', '2020-01-01', '2023-12-31')
 
 # 7. Treinar modelo
 from sklearn.ensemble import RandomForestRegressor
 
-X = features[['mare_astro', 'vazao_total', 'vento_vel', 'pressao', 'chuva_30d', 'mes']]
-y = observacoes['nivel_real']
+X_treino = features_treino[['mare_astro', 'vazao_total', 'vento_vel', 'pressao', 'chuva_30d', 'mes']]
+y_treino = observacoes_historicas['nivel_real']  # TARGET = nível OBSERVADO no passado
 
 modelo = RandomForestRegressor(n_estimators=100)
-modelo.fit(X, y)
+modelo.fit(X_treino, y_treino)
 
-# 8. Prever com correções
-previsao_final = modelo.predict(X)
+# 8. Salvar modelo treinado
+import joblib
+joblib.dump(modelo, 'modelo_viladoconde.pkl')
+```
+
+**Resumo Fase 1:**
+- ✅ Todos os dados são **HISTÓRICOS** (passado conhecido)
+- ✅ Você precisa de **observações reais** do nível de água (target)
+- ✅ Período típico: 3-10 anos de dados históricos
+- ✅ Faz uma vez, depois só retreina periodicamente
+
+---
+
+#### **Fase 2: Previsão Operacional (Dados Atuais + Previsões)**
+
+Para fazer previsões **FUTURAS** (operação real), você precisa de:
+
+```python
+# FASE DE PREVISÃO - Quer prever o FUTURO (próximas 24-72h)
+
+import joblib
+from datetime import datetime, timedelta
+
+# 1. Carregar modelo treinado
+modelo = joblib.load('modelo_viladoconde.pkl')
+
+# 2. Definir horizonte de previsão
+agora = datetime.now()
+horizonte = agora + timedelta(hours=48)  # Quer prever próximas 48h
+
+# 3. Previsão astronômica (este projeto) - DISPONÍVEL para o futuro!
+#    As constantes harmônicas permitem calcular para QUALQUER data futura
+df_astro_futuro = calcular_mare_astronomica(agora, horizonte)  # Esse projeto já faz isso!
+
+# 4. CRÍTICO: Buscar PREVISÕES meteorológicas (não observações!)
+#    Você precisa de PREVISÃO de vento/pressão, não do passado!
+previsao_meteo = buscar_previsao_inmet_cptec(
+    local='viladoconde',
+    inicio=agora,
+    fim=horizonte
+)  # Modelos numéricos de previsão do tempo
+
+# 5. Vazão fluvial - PROBLEMA: Dados são do passado recente
+#    Opções:
+#    A) Usar última vazão observada (simplificação)
+#    B) Usar modelo hidrológico para prever vazão futura
+vazao_atual = buscar_vazao_ana_tempo_real(estacao='15400000')  # Último dado disponível
+# OU
+vazao_prevista = modelo_hidrologico.prever(chuva_prevista, vazao_atual)  # Mais sofisticado
+
+# 6. Precipitação acumulada - Usa passado recente + previsão
+chuva_30d_passado = buscar_precipitacao_bacia(
+    bacia='amazonia',
+    inicio=agora - timedelta(days=30),
+    fim=agora
+)
+chuva_futura_prevista = buscar_previsao_chuva_gfs(bacia='amazonia', dias=2)
+
+# 7. Criar features para previsão
+features_previsao = pd.DataFrame({
+    'data': df_astro_futuro['Data_Hora'],
+    'mare_astro': df_astro_futuro['Altura_m'],           # FUTURO calculado (harmônico)
+    'vazao_total': vazao_atual,                           # ATUAL observado (lag aceito)
+    'vento_vel': previsao_meteo['VEN_VEL_PREV'],        # FUTURO previsto (modelo numérico)
+    'pressao': previsao_meteo['PRE_PREV'],               # FUTURO previsto
+    'chuva_30d': chuva_30d_passado.sum(),                # PASSADO recente (antecedente)
+    'mes': pd.to_datetime(df_astro_futuro['Data_Hora']).dt.month,
+})
+
+# 8. PREVER nível futuro
+X_futuro = features_previsao[['mare_astro', 'vazao_total', 'vento_vel', 'pressao', 'chuva_30d', 'mes']]
+previsao_nivel = modelo.predict(X_futuro)
+
+# 9. Resultado: Previsão de nível para as próximas 48h
+resultado = pd.DataFrame({
+    'data_hora': features_previsao['data'],
+    'nivel_previsto': previsao_nivel,
+    'mare_astronomica': features_previsao['mare_astro'],
+    'correcao_ML': previsao_nivel - features_previsao['mare_astro']
+})
+
+print(resultado)
+```
+
+**Resumo Fase 2:**
+- ✅ Maré astronômica → **Calculável para o futuro** (constantes harmônicas)
+- ⚠️ Meteorologia (vento, pressão) → Precisa de **previsão numérica** (GFS, ECMWF, CPTEC)
+- ⚠️ Vazão fluvial → Pode usar **valor atual** (com lag) ou **modelo hidrológico**
+- ✅ Precipitação acumulada → Usa **passado recente** (antecedente) + previsão
+- ❌ **NÃO** tem observações do nível futuro (é isso que você quer prever!)
+
+---
+
+### 🎯 Conceitos Importantes: Lead Time e Horizonte de Previsão
+
+#### **Lead Time (Tempo de Antecedência)**
+
+É quanto tempo **ANTES** você consegue fazer a previsão:
+
+| Tipo de Previsão | Lead Time | Limitações |
+|------------------|-----------|------------|
+| **Nowcasting** (0-6h) | Minutos a horas | Usa observações atuais, alta precisão |
+| **Curto prazo** (6-48h) | 6-48 horas | Usa previsões meteorológicas, boa precisão |
+| **Médio prazo** (2-7 dias) | 2-7 dias | Incerteza meteorológica aumenta |
+| **Longo prazo** (>7 dias) | >7 dias | Apenas maré astronômica é confiável |
+
+**Exemplo: Vila do Conde**
+```python
+# Lead time depende das features:
+
+# 1. Maré astronômica: Lead time INFINITO (pode calcular para 2050 se quiser!)
+mare_2050 = calcular_mare_astronomica('2050-01-01')  # Funciona!
+
+# 2. Meteorologia: Lead time ~7-10 dias (depois disso, previsão é ruim)
+vento_7d = previsao_gfs(dias=7)  # OK
+vento_30d = previsao_gfs(dias=30)  # Não confiável!
+
+# 3. Vazão Amazonas: Lead time ~30-60 dias (depende da chuva na bacia)
+#    A chuva que caiu hoje em Manaus leva 30-60 dias para chegar em Óbidos
+chuva_hoje_manaus = 100mm  # → afeta vazão em Óbidos daqui 45 dias
+
+# 4. Precipitação acumulada (antecedente): Lead time negativo (usa passado)
+chuva_30d = precipitacao_ultimos_30_dias()  # Olha para trás, não para frente
+```
+
+**Implicação prática:**
+- **0-48h:** Previsão boa (meteo + astronômico)
+- **2-7 dias:** Previsão razoável (meteo degrada, mas astronômico OK)
+- **7-30 dias:** Apenas astronômico confiável (meteo é "climatologia")
+- **30-60 dias Vila do Conde:** Pode usar precipitação passada para prever vazão futura!
+
+---
+
+### 🌐 Fontes de Dados: Observações vs Previsões
+
+#### **Dados HISTÓRICOS (para treinamento)**
+
+| Variável | Fonte OBSERVAÇÕES | API/Acesso |
+|----------|-------------------|------------|
+| Nível de água (target) | Régua porto, ANA, Marinha | ANA HidroWeb, contato porto |
+| Vazão fluvial | ANA estações | HidroWeb (histórico gratuito) |
+| Vento observado | INMET estações | Portal INMET (CSV/API) |
+| Pressão observada | INMET estações | Portal INMET |
+| Precipitação observada | INMET, ANA, CHIRPS | INMET, HidroWeb, CHIRPS |
+| Onda observada | Boias Copernicus, PNBOIA | Copernicus, Marinha |
+
+#### **Dados FUTUROS (para previsão operacional)**
+
+| Variável | Fonte PREVISÕES | API/Acesso | Lead Time |
+|----------|-----------------|------------|-----------|
+| Maré astronômica | **Este projeto!** | Cálculo local | ∞ (infinito) |
+| Vento previsto | CPTEC/INPE, GFS, ECMWF | CPTEC API, OpenWeather | 7-10 dias |
+| Pressão prevista | CPTEC/INPE, GFS | CPTEC API | 7-10 dias |
+| Precipitação prevista | CPTEC/INPE, GFS, MERGE | CPTEC API | 7-10 dias |
+| Vazão prevista | Modelo hidrológico próprio | - | Variável |
+| Onda prevista | Copernicus Marine, WW3 | Copernicus API | 5-10 dias |
+
+**APIs de Previsão Meteorológica no Brasil:**
+
+1. **CPTEC/INPE** (Centro de Previsão de Tempo e Estudos Climáticos)
+   - Site: https://www.cptec.inpe.br/
+   - API: http://servicos.cptec.inpe.br/
+   - Dados: Previsão de vento, temperatura, chuva (até 7 dias)
+   - Gratuito: Sim
+
+2. **GFS (Global Forecast System)**
+   - Via NOAA: https://nomads.ncep.noaa.gov/
+   - Resolução: 0.25° (~25km)
+   - Lead time: 16 dias
+   - Variáveis: Vento, pressão, temperatura, precipitação
+   - Formato: GRIB2
+   - Gratuito: Sim
+
+3. **OpenWeather API** (comercial, mas tem plano free)
+   - Site: https://openweathermap.org/api
+   - Previsão: 5-7 dias
+   - Fácil de usar (JSON)
+
+**Exemplo de código:**
+```python
+# Buscar previsão meteorológica do CPTEC
+import requests
+
+# Previsão para cidade
+url = "http://servicos.cptec.inpe.br/XML/cidade/7dias/241/previsao.xml"
+resposta = requests.get(url)
+previsao_xml = resposta.content
+
+# OpenWeather (mais fácil de usar)
+api_key = "SUA_API_KEY"
+lat, lon = -1.38, -48.48  # Vila do Conde
+url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={api_key}"
+resposta = requests.get(url)
+previsao = resposta.json()
+
+# Extrair vento previsto para próximas 48h
+for item in previsao['list'][:16]:  # 16 intervalos de 3h = 48h
+    data_hora = item['dt_txt']
+    vento_vel = item['wind']['speed']
+    vento_dir = item['wind']['deg']
+    print(f"{data_hora}: {vento_vel} m/s, {vento_dir}°")
+```
+
+---
+
+### ⏱️ Estratégias por Horizonte de Previsão
+
+#### **Nowcasting (0-6 horas) - Máxima Precisão**
+```python
+# Usa dados OBSERVADOS recentes
+features_nowcast = {
+    'mare_astro': calculado,              # Exato
+    'vento_vel': observado_ultima_hora,   # Estação INMET
+    'vazao': observada_tempo_real,        # ANA telemetria
+    'pressao': observada_atual,           # INMET
+}
+# Precisão: Alta (erro ~5-10 cm)
+```
+
+#### **Curto Prazo (6-48 horas) - Operacional**
+```python
+# Usa PREVISÕES meteorológicas
+features_curto = {
+    'mare_astro': calculado,              # Exato
+    'vento_vel': previsao_gfs_24h,        # Modelo numérico
+    'vazao': observada_atual,             # Lag aceito (rio muda lento)
+    'pressao': previsao_gfs_24h,          # Modelo numérico
+    'chuva_30d': observada_passado,       # Antecedente
+}
+# Precisão: Boa (erro ~10-20 cm, depende de meteo)
+```
+
+#### **Médio Prazo (2-7 dias) - Planejamento**
+```python
+# Previsão meteorológica degrada, astronômico domina
+features_medio = {
+    'mare_astro': calculado,              # Exato (dominante!)
+    'vento_vel': previsao_gfs_5d,         # Incerto
+    'vazao': climatologia_mes,            # Usa média histórica
+}
+# Precisão: Moderada (erro ~20-40 cm)
+# Útil para: Janelas de manobra, planejamento logístico
+```
+
+#### **Longo Prazo (>7 dias) - Apenas Astronômico**
+```python
+# Só maré astronômica é confiável
+features_longo = {
+    'mare_astro': calculado,              # Único confiável
+    # Não use previsões meteorológicas > 7 dias!
+}
+# Precisão: Limitada (só baseline astronômico)
+# Útil para: Identificar marés de sizígia, planejar manutenção
+```
+
+---
+
+### 🔄 Sistema Operacional Completo (Tempo Real)
+
+```python
+# Script para rodar a cada 1 hora (cron job)
+from datetime import datetime, timedelta
+import joblib
+
+def prever_mare_proximas_48h():
+    # 1. Tempo atual
+    agora = datetime.utcnow()
+
+    # 2. Carregar modelo treinado
+    modelo = joblib.load('modelo_viladoconde.pkl')
+
+    # 3. Calcular maré astronômica (futuro)
+    mare_astro = calcular_mare_astronomica_48h(agora)
+
+    # 4. Buscar última vazão observada (ANA tempo real)
+    vazao = buscar_ana_telemetria('15400000')
+
+    # 5. Buscar previsão meteorológica (GFS/CPTEC)
+    meteo_prev = buscar_previsao_gfs(lat=-1.38, lon=-48.48, horas=48)
+
+    # 6. Precipitação acumulada (últimos 30 dias)
+    chuva_30d = buscar_chirps_historico(dias=30).sum()
+
+    # 7. Montar features e prever
+    X = criar_features(mare_astro, vazao, meteo_prev, chuva_30d)
+    previsao = modelo.predict(X)
+
+    # 8. Salvar resultado
+    salvar_previsao_database(agora, previsao)
+
+    # 9. Gerar alertas se nível > limiar crítico
+    if previsao.max() > NIVEL_CRITICO:
+        enviar_alerta(previsao)
+
+    return previsao
+
+# Rodar a cada hora
+if __name__ == '__main__':
+    prever_mare_proximas_48h()
 ```
 
 ---
