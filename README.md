@@ -964,14 +964,758 @@ if __name__ == '__main__':
 
 ---
 
-**Porto de Paranaguá - Correções Meteorológicas:**
-- Feature principal: Previsão astronômica (este projeto)
-- Feature de erro: Intensidade e direção do vento
-- Target: Altura real observada
-- O modelo aprende a corrigir distorções de águas rasas + efeitos meteorológicos
+## 📋 Guia Prático de Implementação: Busca de Dados por Variável
 
-**Porto de Santos:**
-- Previsão astronômica como baseline
+Este guia serve como **checklist** para desenvolvedores implementarem um sistema de ML para previsão de marés. Siga as instruções específicas para cada tipo de variável.
+
+---
+
+### 🎯 **VARIÁVEL 1: Maré Astronômica (Baseline)**
+
+**Status:** ✅ **JÁ DISPONÍVEL NESTE PROJETO**
+
+| Item | Descrição |
+|------|-----------|
+| **Tipo de dado** | Calculado (não precisa buscar) |
+| **Período** | Qualquer (2020-2026 já gerado, pode estender) |
+| **Fonte** | Este projeto (constantes harmônicas) |
+| **Lead time** | Infinito (calculável para qualquer data futura) |
+| **Formato** | CSV com colunas: Data_Hora, Altura_m, Evento |
+
+**Como usar:**
+```python
+import pandas as pd
+
+# Carregar previsão astronômica
+df_mare = pd.read_csv('viladoconde_extremos_2020_2026.csv')
+df_mare['Data_Hora'] = pd.to_datetime(df_mare['Data_Hora'])
+
+# Filtrar período desejado
+df_treino = df_mare[(df_mare['Data_Hora'] >= '2020-01-01') &
+                     (df_mare['Data_Hora'] < '2024-01-01')]
+
+print(f"✅ Maré astronômica: {len(df_treino)} registros carregados")
+```
+
+---
+
+### 🎯 **VARIÁVEL 2: Vazão Fluvial**
+
+**Necessário para:** Rio Grande, Paranaguá, Antonina, **Vila do Conde (CRÍTICO)**
+
+| Item | Descrição |
+|------|-----------|
+| **Fonte** | ANA - Agência Nacional de Águas |
+| **Site** | https://www.snirh.gov.br/hidroweb/ |
+| **Tipo de dado** | Observações históricas (vazão em m³/s) |
+| **Período recomendado** | Mínimo 3 anos (idealmente 5-10 anos) |
+| **Frequência** | Diária ou horária (depende da estação) |
+| **Formato** | CSV, TXT, ou API REST |
+
+**Estações chave:**
+
+| Porto | Código Estação | Nome | Rio |
+|-------|----------------|------|-----|
+| Vila do Conde | **15400000** | Óbidos | Amazonas |
+| Vila do Conde | **29280000** | Tucuruí | Tocantins |
+| Rio Grande | **87560000** | São Gonçalo | Lagoa dos Patos |
+
+**Prompt para buscar dados:**
+
+```
+AÇÃO: Acessar HidroWeb da ANA e baixar dados de vazão
+
+PASSO 1: Acesse https://www.snirh.gov.br/hidroweb/
+
+PASSO 2: Clique em "Séries Históricas"
+
+PASSO 3: Selecione:
+- Tipo de Estação: Fluviométrica
+- Variável: Vazão
+- Código da Estação: [USE CÓDIGO DA TABELA ACIMA]
+- Período: 01/01/2020 até 31/12/2023 (ou mais recente disponível)
+
+PASSO 4: Clique em "Buscar" e depois "Download"
+
+PASSO 5: Escolha formato CSV
+
+RESULTADO ESPERADO: Arquivo CSV com colunas:
+- Data
+- Vazao (m³/s)
+- NivelConsistencia (1=consistido, 2=não consistido)
+```
+
+**Código para processar dados da ANA:**
+```python
+import pandas as pd
+import requests
+
+# OPÇÃO 1: Carregar arquivo CSV baixado manualmente
+def carregar_vazao_ana_csv(arquivo_csv):
+    """Carrega dados de vazão do CSV da ANA"""
+    # Formato típico da ANA (ajustar se necessário)
+    df = pd.read_csv(arquivo_csv, sep=';', encoding='latin1', decimal=',')
+
+    # Renomear colunas (verificar nomes no seu CSV)
+    df = df.rename(columns={
+        'Data': 'data',
+        'Vazao': 'vazao_m3s'
+    })
+
+    df['data'] = pd.to_datetime(df['data'], format='%d/%m/%Y')
+    df['vazao_m3s'] = pd.to_numeric(df['vazao_m3s'], errors='coerce')
+
+    # Remover valores nulos
+    df = df.dropna(subset=['vazao_m3s'])
+
+    print(f"✅ Vazão ANA: {len(df)} registros carregados")
+    print(f"   Período: {df['data'].min()} até {df['data'].max()}")
+    print(f"   Vazão média: {df['vazao_m3s'].mean():.2f} m³/s")
+
+    return df[['data', 'vazao_m3s']]
+
+# OPÇÃO 2: API da ANA (mais avançado)
+def buscar_vazao_ana_api(cod_estacao, data_inicio, data_fim):
+    """Busca dados via API da ANA"""
+    url = "http://telemetriaws1.ana.gov.br/ServiceANA.asmx/DadosHidrometeorologicos"
+
+    params = {
+        'codEstacao': cod_estacao,
+        'dataInicio': data_inicio.strftime('%d/%m/%Y'),
+        'dataFim': data_fim.strftime('%d/%m/%Y')
+    }
+
+    print(f"⏳ Buscando vazão da estação {cod_estacao}...")
+    response = requests.get(url, params=params, timeout=60)
+
+    if response.status_code == 200:
+        # Parsear XML retornado (implementar conforme estrutura da resposta)
+        print("✅ Dados recebidos da API ANA")
+        # TODO: Implementar parser XML -> DataFrame
+        return response.content
+    else:
+        print(f"❌ Erro ao buscar dados: {response.status_code}")
+        return None
+
+# Uso:
+# Baixar manualmente do HidroWeb e carregar
+df_vazao_amazonas = carregar_vazao_ana_csv('obidos_15400000_2020_2023.csv')
+df_vazao_tocantins = carregar_vazao_ana_csv('tucurui_29280000_2020_2023.csv')
+
+# Combinar vazões (Vila do Conde)
+df_vazao_total = pd.merge(
+    df_vazao_amazonas,
+    df_vazao_tocantins,
+    on='data',
+    how='outer',
+    suffixes=('_amazonas', '_tocantins')
+).fillna(method='ffill')
+
+df_vazao_total['vazao_total'] = (
+    df_vazao_total['vazao_m3s_amazonas'] +
+    df_vazao_total['vazao_m3s_tocantins']
+)
+```
+
+**Troubleshooting:**
+- ❌ **Dados faltando:** Use interpolação linear ou forward-fill
+- ❌ **Formato diferente:** Ajuste separadores e encoding no `pd.read_csv()`
+- ❌ **API não responde:** Prefira download manual via portal
+
+---
+
+### 🎯 **VARIÁVEL 3: Dados Meteorológicos (Vento, Pressão)**
+
+**Necessário para:** Todos os portos (especialmente Santos, Rio Grande)
+
+| Item | Descrição |
+|------|-----------|
+| **Fonte** | INMET - Instituto Nacional de Meteorologia |
+| **Site** | https://portal.inmet.gov.br/ |
+| **Tipo de dado** | Observações históricas (horária ou diária) |
+| **Período recomendado** | Mesmo período da vazão (3-10 anos) |
+| **Frequência** | Horária (estações automáticas) |
+| **Formato** | CSV |
+
+**Estações chave:**
+
+| Porto | Código | Cidade |
+|-------|--------|--------|
+| Santos | **A701** | Santos - Ponta da Praia |
+| Rio Grande | **A802** | Rio Grande |
+| Paranaguá | **A851** | Paranaguá |
+| São Luís (Itaqui) | **A201** | São Luís |
+| Belém (Vila do Conde) | **A230** | Belém |
+
+**Prompt para buscar dados:**
+
+```
+AÇÃO: Baixar dados meteorológicos do INMET
+
+PASSO 1: Acesse https://portal.inmet.gov.br/
+
+PASSO 2: Menu: "Dados" → "Estações Automáticas" → "Dados Históricos"
+
+PASSO 3: Selecione:
+- Estação: [USE CÓDIGO DA TABELA ACIMA]
+- Período: 01/01/2020 até 31/12/2023
+- Variáveis:
+  ✅ Velocidade do Vento (m/s)
+  ✅ Direção do Vento (°)
+  ✅ Pressão Atmosférica (hPa)
+  ✅ Temperatura (°C) [opcional]
+  ✅ Precipitação (mm) [opcional]
+
+PASSO 4: Clique em "Gerar Arquivo"
+
+PASSO 5: Download do arquivo ZIP com CSVs
+
+RESULTADO ESPERADO: CSV com colunas:
+- Data, Hora
+- VEN_VEL (m/s)
+- VEN_DIR (graus)
+- PRE_INS (hPa)
+```
+
+**Código para processar dados do INMET:**
+```python
+import pandas as pd
+import numpy as np
+
+def carregar_dados_inmet(arquivo_csv, cod_estacao):
+    """Carrega dados meteorológicos do INMET"""
+    # INMET usa formato específico com cabeçalhos em português
+    df = pd.read_csv(
+        arquivo_csv,
+        sep=';',
+        encoding='latin1',
+        decimal=',',
+        skiprows=8  # Pular cabeçalho do INMET (verificar seu arquivo!)
+    )
+
+    # Colunas típicas do INMET (nomes podem variar)
+    df = df.rename(columns={
+        'Data': 'data',
+        'Hora UTC': 'hora',
+        'VENTO, VELOCIDADE HORARIA (m/s)': 'vento_vel',
+        'VENTO, DIRECAO HORARIA (gr)': 'vento_dir',
+        'PRESSAO ATMOSFERICA AO NIVEL DA ESTACAO, HORARIA (mB)': 'pressao'
+    })
+
+    # Combinar data e hora
+    df['data_hora'] = pd.to_datetime(
+        df['data'] + ' ' + df['hora'],
+        format='%Y/%m/%d %H:%M'
+    )
+
+    # Converter para numérico
+    for col in ['vento_vel', 'vento_dir', 'pressao']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # Remover valores inválidos (-9999 é código de dado faltante no INMET)
+    df = df.replace(-9999, np.nan)
+    df = df.dropna(subset=['vento_vel', 'pressao'])
+
+    print(f"✅ INMET {cod_estacao}: {len(df)} registros carregados")
+    print(f"   Período: {df['data_hora'].min()} até {df['data_hora'].max()}")
+    print(f"   Vento médio: {df['vento_vel'].mean():.2f} m/s")
+    print(f"   Pressão média: {df['pressao'].mean():.2f} hPa")
+
+    return df[['data_hora', 'vento_vel', 'vento_dir', 'pressao']]
+
+# Criar features de vento sul (importante para portos sul/sudeste)
+def calcular_features_vento_sul(df):
+    """Cria features específicas de vento sul (135-225°)"""
+    # Vento sul: direção entre 135° e 225°
+    df['vento_sul'] = (
+        (df['vento_dir'] >= 135) &
+        (df['vento_dir'] <= 225)
+    ).astype(int)
+
+    df['vento_sul_vel'] = df['vento_vel'] * df['vento_sul']
+
+    # Persistência: horas consecutivas de vento sul
+    df['vento_sul_persistencia'] = (
+        df.groupby((df['vento_sul'] != df['vento_sul'].shift()).cumsum())
+        ['vento_sul']
+        .cumsum()
+    )
+
+    # Máximo de vento sul nas últimas 48h (rolling)
+    df['vento_sul_max_48h'] = (
+        df['vento_sul_vel']
+        .rolling(window=48, min_periods=1)
+        .max()
+    )
+
+    return df
+
+# Uso:
+df_meteo = carregar_dados_inmet('INMET_SE_A701_SANTOS_2020_2023.csv', 'A701')
+df_meteo = calcular_features_vento_sul(df_meteo)
+
+print("\n📊 Features criadas:")
+print(df_meteo[['data_hora', 'vento_vel', 'vento_dir', 'vento_sul',
+                 'vento_sul_persistencia', 'vento_sul_max_48h']].head(10))
+```
+
+**Troubleshooting:**
+- ❌ **Arquivo diferente:** INMET muda formato - ajuste `skiprows` e nomes de colunas
+- ❌ **Dados faltando:** Use interpolação temporal ou busque estação próxima
+- ❌ **Valores -9999:** São dados faltantes, substituir por `np.nan`
+
+---
+
+### 🎯 **VARIÁVEL 4: Precipitação de Bacia (Amazônia)**
+
+**Necessário para:** Vila do Conde (previsão de vazão futura)
+
+| Item | Descrição |
+|------|-----------|
+| **Fonte** | CHIRPS (Climate Hazards Group) |
+| **Site** | https://www.chc.ucsb.edu/data/chirps |
+| **Tipo de dado** | Precipitação em grade (satélite) |
+| **Resolução** | 0.05° (~5km) |
+| **Período** | 1981-presente (atualizado mensalmente) |
+| **Formato** | GeoTIFF, NetCDF |
+
+**Prompt para buscar dados:**
+
+```
+AÇÃO: Baixar precipitação CHIRPS para Bacia Amazônica
+
+PASSO 1: Acesse https://data.chc.ucsb.edu/products/CHIRPS-2.0/
+
+PASSO 2: Navegue até: global_daily/tifs/p05/ (resolução 0.05°)
+
+PASSO 3: Selecione os anos desejados (ex: 2020/, 2021/, 2022/, 2023/)
+
+PASSO 4: Baixe arquivos GeoTIFF diários para o período
+
+ALTERNATIVA MAIS FÁCIL: Use Google Earth Engine API (requer cadastro)
+
+RESULTADO ESPERADO: Arquivos TIFF diários com precipitação em mm
+```
+
+**Código para processar CHIRPS:**
+```python
+import rasterio
+import numpy as np
+import pandas as pd
+from glob import glob
+
+def extrair_precipitacao_bacia(tiff_files, bbox_amazonia):
+    """
+    Extrai precipitação média da Bacia Amazônica
+
+    bbox_amazonia: (lon_min, lat_min, lon_max, lat_max)
+    Exemplo: (-75, -10, -50, 2) # Bacia Amazônica aproximada
+    """
+    resultados = []
+
+    for tiff_file in tiff_files:
+        # Extrair data do nome do arquivo (formato: chirps-v2.0.2020.01.01.tif)
+        data_str = tiff_file.split('.')[-4:-1]  # ['2020', '01', '01']
+        data = pd.to_datetime('.'.join(data_str))
+
+        # Abrir raster
+        with rasterio.open(tiff_file) as src:
+            # Recortar bbox da Amazônia
+            window = src.window(*bbox_amazonia)
+            data_array = src.read(1, window=window)
+
+            # Calcular precipitação média na bacia (ignorar nodata)
+            precip_media = np.nanmean(data_array[data_array >= 0])
+
+            resultados.append({
+                'data': data,
+                'precip_mm': precip_media
+            })
+
+    df = pd.DataFrame(resultados)
+    print(f"✅ CHIRPS: {len(df)} dias de precipitação processados")
+    print(f"   Precipitação média: {df['precip_mm'].mean():.2f} mm/dia")
+
+    return df
+
+# ALTERNATIVA: Usar pacote Python chirps
+# pip install chirps
+from chirps import get_data
+
+def buscar_chirps_api(bbox, data_inicio, data_fim):
+    """Busca CHIRPS via API (mais fácil)"""
+    lon_min, lat_min, lon_max, lat_max = bbox
+
+    df = get_data(
+        lon_min=lon_min,
+        lat_min=lat_min,
+        lon_max=lon_max,
+        lat_max=lat_max,
+        start_date=data_inicio,
+        end_date=data_fim
+    )
+
+    return df
+
+# Criar feature de precipitação acumulada
+def calcular_precip_acumulada(df, dias=[7, 15, 30, 60]):
+    """Calcula precipitação acumulada em diferentes janelas"""
+    for d in dias:
+        df[f'precip_{d}d'] = df['precip_mm'].rolling(window=d).sum()
+
+    return df
+
+# Uso:
+# Bounding box da Bacia Amazônica
+bbox_amazonia = (-75, -10, -50, 2)
+
+tiff_files = glob('chirps_tiffs/*.tif')
+df_chuva = extrair_precipitacao_bacia(tiff_files, bbox_amazonia)
+df_chuva = calcular_precip_acumulada(df_chuva, dias=[30, 60])
+
+print(df_chuva.head())
+```
+
+**Troubleshooting:**
+- ❌ **Muitos arquivos:** Processe por mês, depois concatene
+- ❌ **Memória insuficiente:** Use amostragem espacial (ex: 0.25° em vez de 0.05°)
+- ❌ **Muito complexo:** Use apenas estações pluviométricas da ANA (mais simples)
+
+---
+
+### 🎯 **VARIÁVEL 5: Nível de Água Observado (TARGET)**
+
+**CRÍTICO:** Sem isso você não consegue treinar o modelo!
+
+| Item | Descrição |
+|------|-----------|
+| **Fonte** | Porto, Marinha, ou ANA |
+| **Tipo de dado** | Observações de régua/sensor (nível em metros) |
+| **Período** | Mesmo dos features (3-10 anos) |
+| **Frequência** | Horária ou sub-horária |
+| **Formato** | CSV, TXT, banco de dados |
+
+**Prompt para buscar dados:**
+
+```
+AÇÃO: Obter observações reais do nível de água
+
+OPÇÃO 1: Contato com o Porto
+- Entre em contato com a Autoridade Portuária
+- Solicite dados históricos de nível de água
+- Especifique: período, frequência, datum de referência
+
+OPÇÃO 2: Centro de Hidrografia da Marinha (CHM)
+- Site: https://www.marinha.mil.br/chm/
+- Alguns dados podem estar disponíveis publicamente
+- Pode ser necessário solicitação formal
+
+OPÇÃO 3: ANA (para portos fluviais/estuarinos)
+- HidroWeb: https://www.snirh.gov.br/hidroweb/
+- Busque estações linigráficas próximas ao porto
+- Tipo: Fluviométrica, Variável: Cota (nível)
+
+INFORMAÇÕES NECESSÁRIAS:
+- Data e hora de cada observação
+- Nível em metros (ou centímetros)
+- Datum de referência (ex: marégrafo zero, DHN)
+- Qualidade/consistência do dado
+
+RESULTADO ESPERADO: CSV com:
+- data_hora
+- nivel_observado_m
+- qualidade (opcional)
+```
+
+**Código para processar observações:**
+```python
+import pandas as pd
+
+def carregar_observacoes_porto(arquivo_csv):
+    """Carrega observações reais do nível de água"""
+    # Formato varia por porto - ajustar conforme necessário
+    df = pd.read_csv(arquivo_csv)
+
+    df['data_hora'] = pd.to_datetime(df['data_hora'])
+    df['nivel_obs_m'] = pd.to_numeric(df['nivel_obs_m'], errors='coerce')
+
+    # Remover outliers óbvios
+    q1 = df['nivel_obs_m'].quantile(0.01)
+    q99 = df['nivel_obs_m'].quantile(0.99)
+    df = df[(df['nivel_obs_m'] >= q1) & (df['nivel_obs_m'] <= q99)]
+
+    print(f"✅ Observações: {len(df)} registros carregados")
+    print(f"   Período: {df['data_hora'].min()} até {df['data_hora'].max()}")
+    print(f"   Nível médio: {df['nivel_obs_m'].mean():.2f} m")
+    print(f"   Amplitude: {df['nivel_obs_m'].min():.2f} a {df['nivel_obs_m'].max():.2f} m")
+
+    return df
+
+# Validar qualidade: comparar com previsão astronômica
+def validar_observacoes(df_obs, df_mare_astro):
+    """Verifica se observações são consistentes"""
+    # Merge por data/hora
+    df_merged = pd.merge(df_obs, df_mare_astro,
+                         left_on='data_hora', right_on='Data_Hora',
+                         how='inner')
+
+    # Calcular resíduo (diferença entre observado e astronômico)
+    df_merged['residuo'] = df_merged['nivel_obs_m'] - df_merged['Altura_m']
+
+    print("\n📊 Validação das observações:")
+    print(f"   Resíduo médio: {df_merged['residuo'].mean():.3f} m")
+    print(f"   Std do resíduo: {df_merged['residuo'].std():.3f} m")
+    print(f"   Resíduo máximo: {df_merged['residuo'].max():.3f} m")
+    print(f"   Resíduo mínimo: {df_merged['residuo'].min():.3f} m")
+
+    # Se resíduo médio >> 0, pode haver offset de datum
+    if abs(df_merged['residuo'].mean()) > 0.5:
+        print("   ⚠️  ALERTA: Resíduo médio muito alto - verificar datum de referência!")
+
+    return df_merged
+
+# Uso:
+df_obs = carregar_observacoes_porto('viladoconde_observacoes_2020_2023.csv')
+df_mare = pd.read_csv('viladoconde_extremos_2020_2026.csv')
+df_validado = validar_observacoes(df_obs, df_mare)
+```
+
+---
+
+### 🎯 **CHECKLIST FINAL: Antes de Treinar o Modelo**
+
+Use este checklist para garantir que você tem todos os dados necessários:
+
+```
+PORT ESPECÍFICO: [Ex: Vila do Conde]
+
+□ MARÉ ASTRONÔMICA (Baseline)
+  ✅ Arquivo CSV deste projeto: viladoconde_extremos_2020_2026.csv
+  ✅ Período coberto: 2020-2026
+  ✅ Total de registros: _______
+
+□ VAZÃO FLUVIAL (Se aplicável)
+  □ Baixado da ANA HidroWeb
+  □ Estação Amazonas (15400000): _______ registros
+  □ Estação Tocantins (29280000): _______ registros
+  □ Período: _______ até _______
+  □ Vazão média: _______ m³/s
+
+□ METEOROLOGIA (INMET)
+  □ Baixado do portal INMET
+  □ Estação: _______ (código: _______)
+  □ Variáveis: ☐ Vento ☐ Pressão ☐ Temp ☐ Precip
+  □ Período: _______ até _______
+  □ Total de registros: _______
+
+□ PRECIPITAÇÃO DE BACIA (Se aplicável)
+  □ Fonte: ☐ CHIRPS ☐ ANA ☐ INMET
+  □ Período: _______ até _______
+  □ Acumulados calculados: ☐ 7d ☐ 15d ☐ 30d ☐ 60d
+
+□ OBSERVAÇÕES REAIS (TARGET) **CRÍTICO**
+  □ Fonte: ☐ Porto ☐ Marinha ☐ ANA
+  □ Arquivo: _________________________
+  □ Período: _______ até _______
+  □ Total de registros: _______
+  □ Nível médio: _______ m
+  □ Validado com maré astronômica: ☐ Sim
+
+□ INTEGRAÇÃO
+  □ Todos os DataFrames no mesmo timezone (UTC)
+  □ Todos os dados no mesmo período (overlap)
+  □ Merge feito por data/hora (sem perda de registros)
+  □ Valores faltantes tratados (interpolação/ffill)
+  □ Outliers removidos
+
+□ PRONTO PARA TREINAR!
+  □ Features (X): _______ colunas
+  □ Target (y): nivel_observado
+  □ Total de amostras: _______
+  □ Train/test split: ___ / ___
+```
+
+---
+
+### 📝 Template de Script Completo
+
+Use este template como ponto de partida:
+
+```python
+"""
+Script de Treinamento - Previsão de Marés com ML
+Porto: [NOME DO PORTO]
+"""
+
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, r2_score
+import joblib
+
+# ============================================
+# 1. CARREGAR TODOS OS DADOS
+# ============================================
+
+print("📂 Carregando dados...")
+
+# Maré astronômica (este projeto)
+df_mare = pd.read_csv('viladoconde_extremos_2020_2026.csv')
+df_mare['Data_Hora'] = pd.to_datetime(df_mare['Data_Hora'])
+
+# Vazão (ANA)
+df_vazao_amz = carregar_vazao_ana_csv('obidos_15400000.csv')
+df_vazao_toc = carregar_vazao_ana_csv('tucurui_29280000.csv')
+
+# Meteorologia (INMET)
+df_meteo = carregar_dados_inmet('INMET_A230_BELEM.csv', 'A230')
+
+# Precipitação (CHIRPS)
+df_chuva = pd.read_csv('chirps_amazonia_2020_2023.csv')
+df_chuva['data'] = pd.to_datetime(df_chuva['data'])
+
+# Observações (TARGET)
+df_obs = carregar_observacoes_porto('viladoconde_observacoes.csv')
+
+print("✅ Todos os dados carregados")
+
+# ============================================
+# 2. MERGE DE TODOS OS DATAFRAMES
+# ============================================
+
+print("\n🔗 Fazendo merge dos dados...")
+
+# Merge maré + observações
+df = pd.merge(df_mare, df_obs,
+              left_on='Data_Hora', right_on='data_hora',
+              how='inner')
+
+# Merge com vazão
+df = pd.merge(df, df_vazao_amz,
+              left_on='Data_Hora', right_on='data',
+              how='left', suffixes=('', '_amz'))
+
+df = pd.merge(df, df_vazao_toc,
+              left_on='Data_Hora', right_on='data',
+              how='left', suffixes=('', '_toc'))
+
+# Merge com meteorologia
+df = pd.merge(df, df_meteo,
+              left_on='Data_Hora', right_on='data_hora',
+              how='left', suffixes=('', '_meteo'))
+
+# Merge com precipitação
+df = pd.merge(df, df_chuva,
+              left_on=df['Data_Hora'].dt.date, right_on='data',
+              how='left')
+
+print(f"✅ Merge completo: {len(df)} amostras")
+
+# ============================================
+# 3. FEATURE ENGINEERING
+# ============================================
+
+print("\n⚙️  Criando features...")
+
+# Vazão total
+df['vazao_total'] = df['vazao_m3s_amz'] + df['vazao_m3s_toc']
+
+# Features temporais
+df['mes'] = df['Data_Hora'].dt.month
+df['dia_ano'] = df['Data_Hora'].dt.dayofyear
+df['hora'] = df['Data_Hora'].dt.hour
+
+# Features de vento sul
+df = calcular_features_vento_sul(df)
+
+# Precipitação acumulada
+df = calcular_precip_acumulada(df, dias=[30, 60])
+
+# Features finais
+features_cols = [
+    'Altura_m',          # Maré astronômica
+    'vazao_total',       # Vazão
+    'vento_vel',         # Vento
+    'vento_sul_max_48h', # Vento sul
+    'pressao',           # Pressão
+    'precip_30d',        # Chuva 30d
+    'precip_60d',        # Chuva 60d
+    'mes',               # Sazonalidade
+]
+
+target_col = 'nivel_obs_m'
+
+# Remover NaN
+df = df.dropna(subset=features_cols + [target_col])
+
+print(f"✅ Features criadas: {len(features_cols)} variáveis")
+print(f"✅ Amostras finais: {len(df)}")
+
+# ============================================
+# 4. TREINAR MODELO
+# ============================================
+
+print("\n🤖 Treinando modelo...")
+
+X = df[features_cols]
+y = df[target_col]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+modelo = RandomForestRegressor(
+    n_estimators=100,
+    max_depth=20,
+    random_state=42,
+    n_jobs=-1
+)
+
+modelo.fit(X_train, y_train)
+
+# ============================================
+# 5. AVALIAR MODELO
+# ============================================
+
+print("\n📊 Avaliando modelo...")
+
+y_pred_train = modelo.predict(X_train)
+y_pred_test = modelo.predict(X_test)
+
+mae_train = mean_absolute_error(y_train, y_pred_train)
+mae_test = mean_absolute_error(y_test, y_pred_test)
+r2_train = r2_score(y_train, y_pred_train)
+r2_test = r2_score(y_test, y_pred_test)
+
+print(f"   MAE Treino: {mae_train:.3f} m")
+print(f"   MAE Teste:  {mae_test:.3f} m")
+print(f"   R² Treino:  {r2_train:.3f}")
+print(f"   R² Teste:   {r2_test:.3f}")
+
+# Importância das features
+importances = pd.DataFrame({
+    'feature': features_cols,
+    'importance': modelo.feature_importances_
+}).sort_values('importance', ascending=False)
+
+print("\n🔍 Importância das features:")
+print(importances)
+
+# ============================================
+# 6. SALVAR MODELO
+# ============================================
+
+print("\n💾 Salvando modelo...")
+joblib.dump(modelo, 'modelo_viladoconde.pkl')
+print("✅ Modelo salvo: modelo_viladoconde.pkl")
+
+print("\n🎉 Treinamento concluído com sucesso!")
+```
+
+---
+
+**Porto de Paranaguá - Correções Meteorológicas:**
 - Ventos sul e frentes frias como features meteorológicas
 - Ressacas podem adicionar +1m ao nível previsto
 
