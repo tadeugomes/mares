@@ -1,9 +1,9 @@
 #!/bin/bash
-# Script para executar a previsão de marés do Porto de Itaqui
+# Script para executar previsão de marés de portos brasileiros
 
-echo "=================================="
-echo "Previsão de Marés - Porto de Itaqui"
-echo "=================================="
+echo "========================================="
+echo "Previsão de Marés - Portos Brasileiros"
+echo "========================================="
 echo ""
 
 # Verificar se Python está instalado
@@ -24,19 +24,68 @@ if [ $? -ne 0 ]; then
         echo "  pip install -r requirements.txt"
         exit 1
     fi
+    echo "Dependências instaladas com sucesso!"
 fi
 
-# Executar o script
 echo ""
-echo "Executando cálculo de marés..."
+echo "Escolha o porto para calcular previsões:"
 echo ""
-python3 previsao_mares_itaqui.py
+echo "1) Porto de Itaqui (MA) - Macromaré"
+echo "2) Terminal Gás Sul (SC) - Micro-maré"
+echo "3) Ambos"
+echo "0) Cancelar"
+echo ""
+read -p "Opção [1-3]: " opcao
+
+case $opcao in
+    1)
+        echo ""
+        echo "========================================="
+        echo "Calculando: Porto de Itaqui (MA)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_itaqui.py
+        ;;
+    2)
+        echo ""
+        echo "========================================="
+        echo "Calculando: Terminal Gás Sul (SC)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_tgs.py
+        ;;
+    3)
+        echo ""
+        echo "========================================="
+        echo "Calculando: Porto de Itaqui (MA)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_itaqui.py
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Terminal Gás Sul (SC)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_tgs.py
+        fi
+        ;;
+    0)
+        echo "Operação cancelada."
+        exit 0
+        ;;
+    *)
+        echo "Opção inválida!"
+        exit 1
+        ;;
+esac
 
 if [ $? -eq 0 ]; then
     echo ""
-    echo "=================================="
+    echo "========================================="
     echo "Processamento concluído com sucesso!"
-    echo "=================================="
+    echo "========================================="
 else
     echo ""
     echo "Erro ao executar o script."
