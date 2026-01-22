@@ -69,7 +69,20 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **⚠️ Observação:** Forte influência fluvial (Amazonas/Tocantins) e distorção de águas rasas
 - **Nota:** Segunda maior amplitude do projeto, assimetria pronunciada (sobe mais rápido que desce)
 
-### 8. Paranaguá Cais Oeste I (PR)
+### 8. Barcarena (PA) ⭐
+- **Referência:** Vila do Conde (Ficha 10566 - DHN)
+- **Tipo de Maré:** Semidiurna com grande amplitude (~3m)
+- **Nível Médio (NM):** 1.71 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_barcarena.py`
+- **Saída:** `barcarena_extremos_2020_2026.csv`
+- **Localização:** Rio Pará, próximo a Vila do Conde (~30-40 km)
+- **⚠️ Porto Híbrido:** Maré astronômica significativa + Vazão do Rio Pará
+- **Confirmação DHN:** Influência de maré confirmada
+- **Para ML:** Combinar maré astronômica + vazão ANA + meteorologia INMET
+- **Nota:** Componentes de águas rasas (M4, MS4) importantes devido à morfologia fluvial
+
+### 9. Paranaguá Cais Oeste I (PR)
 - **Ficha:** 60151
 - **Tipo de Maré:** Micro-maré com distorção (amplitude < 2m)
 - **Nível Médio (NM):** 0.916 m
@@ -81,7 +94,7 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **⚠️ Observação:** Complementa Cais Leste para modelagem de gradiente e propagação no canal
 - **Para ML:** Lag temporal entre Cais Oeste e Cais Leste permite prever velocidade de propagação da onda de maré
 
-### 9. Porto de Antonina (PR)
+### 10. Porto de Antonina (PR)
 - **Ficha:** 60110
 - **Tipo de Maré:** Micro-maré com amplificação por efeito funil
 - **Nível Médio (NM):** 1.11 m
@@ -158,6 +171,9 @@ Os modelos utilizam constantes harmônicas incluindo:
 - **Distorção de águas rasas pronunciada:** M4 (0.054m) e M6 (0.021m) muito significativas
 - **Assimetria:** Maré sobe mais rápido do que desce
 - **Para ML:** Vazão fluvial (Amazonas/Tocantins) é feature crítica para desvios sazonais
+- **Dois portos próximos:**
+  - **Vila do Conde:** NM = 2.15m, Ficha 10566
+  - **Barcarena ⭐:** NM = 1.71m, mesmas características (usa Vila do Conde como referência DHN)
 
 ## Instalação
 
@@ -222,6 +238,11 @@ python previsao_mares_ilhadapaz.py
 python previsao_mares_viladoconde.py
 ```
 
+**Barcarena:**
+```bash
+python previsao_mares_barcarena.py
+```
+
 ### Opção 2: Usar script auxiliar interativo
 
 ```bash
@@ -264,6 +285,7 @@ mares/
 ├── previsao_mares_antonina.py            # Script Porto de Antonina
 ├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
 ├── previsao_mares_viladoconde.py         # Script Vila do Conde
+├── previsao_mares_barcarena.py           # Script Barcarena
 ├── portos_brasil_historico_portos_hibridos.parquet  # Dataset 1: Portos estuarinos Sul (2020-2024)
 ├── dados_historicos_complementares_portos_oceanicos_v2.parquet  # Dataset 2 v2: Oceanográficos (2020-2025, 13 portos)
 ├── dados_historicos_portos_hibridos_arco_norte_v2.parquet  # Dataset 3: Arco Norte híbridos+fluviais (2020-2025, 3 portos)

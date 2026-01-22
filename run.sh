@@ -37,12 +37,13 @@ echo "4) Porto do Rio Grande (RS) - Maré Mista"
 echo "5) Porto de Paranaguá Cais Leste/TCP (PR) - Micro-maré"
 echo "6) Ilha da Paz (SC) - Micro-maré"
 echo "7) Vila do Conde (PA) - Grande amplitude"
-echo "8) Paranaguá Cais Oeste I (PR) - Micro-maré"
-echo "9) Porto de Antonina (PR) - Micro-maré com amplificação"
-echo "10) Todos"
+echo "8) Barcarena (PA) - Porto híbrido"
+echo "9) Paranaguá Cais Oeste I (PR) - Micro-maré"
+echo "10) Porto de Antonina (PR) - Micro-maré com amplificação"
+echo "11) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-10]: " opcao
+read -p "Opção [1-11]: " opcao
 
 case $opcao in
     1)
@@ -104,12 +105,20 @@ case $opcao in
     8)
         echo ""
         echo "========================================="
+        echo "Calculando: Barcarena (PA)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_barcarena.py
+        ;;
+    9)
+        echo ""
+        echo "========================================="
         echo "Calculando: Paranaguá Cais Oeste I (PR)"
         echo "========================================="
         echo ""
         python3 previsao_mares_paranagua_cais_oeste.py
         ;;
-    9)
+    10)
         echo ""
         echo "========================================="
         echo "Calculando: Porto de Antonina (PR)"
@@ -117,7 +126,7 @@ case $opcao in
         echo ""
         python3 previsao_mares_antonina.py
         ;;
-    10)
+    11)
         echo ""
         echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
@@ -177,6 +186,15 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_viladoconde.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Barcarena (PA)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_barcarena.py
         fi
 
         if [ $? -eq 0 ]; then
