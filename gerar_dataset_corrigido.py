@@ -402,14 +402,29 @@ def integrate_real_flow_data(df, v4_file='dados_historicos_portos_hibridos_arco_
     """
     import os
 
-    if not os.path.exists(v4_file):
+    # Procurar arquivo em multiplos locais
+    possible_paths = [
+        v4_file,
+        f'data/mare_clima/{v4_file}',
+        f'/home/user/mares/data/mare_clima/{v4_file}',
+        f'/home/user/mares/{v4_file}',
+    ]
+
+    file_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            file_path = path
+            break
+
+    if file_path is None:
         print(f"   Arquivo {v4_file} nao encontrado - pulando integracao de vazao real")
+        print(f"   Locais verificados: {possible_paths}")
         return df
 
-    print(f"\n   Integrando dados de vazao REAL do arquivo {v4_file}...")
+    print(f"\n   Integrando dados de vazao REAL do arquivo {file_path}...")
 
     try:
-        df_v4 = pd.read_parquet(v4_file)
+        df_v4 = pd.read_parquet(file_path)
         print(f"   Carregados {len(df_v4):,} registros do v4_real")
 
         # Padronizar nomes de colunas
