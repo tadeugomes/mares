@@ -269,6 +269,7 @@ mares/
 ├── exemplo_uso_dataset_historico.py      # Script de exemplo: como usar os datasets
 ├── RECOMENDACOES_PORTOS_FOZ_RIOS.md      # Análise: portos em foz (com maré)
 ├── ANALISE_PORTOS_FLUVIAIS.md            # Análise: portos fluviais (sem maré)
+├── RECOMENDACOES_PORTOS_ARCO_NORTE.md    # Recomendações: Arco Norte e granéis sólidos
 ├── requirements.txt                       # Dependências Python
 ├── run.sh                                 # Script auxiliar de execução
 └── README.md                              # Esta documentação
@@ -341,6 +342,46 @@ mares/
 - Corumbá (MS) - Variação fluvial (Pantanal)
 
 Para esses portos, você precisa de um **modelo hidrológico**, não harmônico.
+
+### Expansão para Portos Fluviais e Híbridos (Arco Norte)
+
+**⚠️ Importante:** Este projeto foca primariamente em **marés astronômicas**. Portos puramente fluviais (Manaus, Porto Velho, Santarém, Miritituba) têm dinâmica dominada por vazão de rios, não por marés.
+
+**🚢 Classificação de Portos:**
+
+1. **Oceânicos puros** (análise harmônica funciona muito bem):
+   - Itaqui (MA), Santos (SP), Suape (PE), Pecém (CE), Salvador (BA), etc.
+   - Maré astronômica é o componente dominante
+   - Scripts de previsão deste projeto: ✅ Alta precisão
+
+2. **Híbridos estuarinos** (maré + vazão fluvial):
+   - Vila do Conde (PA), Rio Grande (RS), Paranaguá (PR), Antonina (PR)
+   - Têm maré astronômica significativa + influência de rio
+   - Necessitam: Análise harmônica (baseline) + ML com vazão fluvial
+
+3. **Fluviais puros** (apenas vazão, sem maré):
+   - Santarém (PA), Barcarena (PA), Miritituba (PA), Porto Velho (RO), Manaus (AM)
+   - Maré astronômica < 5cm (desprezível)
+   - Necessitam: Modelo hidrológico puro (vazão + precipitação)
+
+**📊 Arco Norte e Granéis Sólidos:**
+
+Para orientação completa sobre incorporar portos fluviais/híbridos do Arco Norte (importantes para escoamento de grãos) ao projeto, incluindo:
+- ✅ Recomendação de incorporar ou não dataset fluvial
+- ✅ Ranking de portos por importância para granéis sólidos
+- ✅ Variáveis necessárias (vazão ANA, precipitação CHIRPS, etc.)
+- ✅ Pipeline de ML específico para cada tipo de porto
+- ✅ Checklist de implementação em fases
+
+**Consulte:** [`RECOMENDACOES_PORTOS_ARCO_NORTE.md`](RECOMENDACOES_PORTOS_ARCO_NORTE.md)
+
+**Status atual dos portos do Arco Norte neste projeto:**
+- ✅ **Itaqui (MA):** Completo (oceânico, com script de maré)
+- ✅ **Vila do Conde (PA):** Parcial (híbrido, tem maré mas falta vazão ANA)
+- ⚠️ **Santarém (PA):** Incompleto (fluvial, só meteorologia, falta vazão)
+- ⚠️ **Barcarena (PA):** Incompleto (híbrido?, precisa verificar maré + adicionar vazão)
+- ❌ **Miritituba (PA):** Não incluído (fluvial puro)
+- ❌ **Porto Velho (RO):** Não incluído (fluvial puro)
 
 ## Aplicações em Machine Learning
 
