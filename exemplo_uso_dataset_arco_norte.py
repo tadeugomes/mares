@@ -19,7 +19,6 @@ Portos incluídos:
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from datetime import datetime
 
 def explorar_dataset_arco_norte():
