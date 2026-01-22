@@ -264,9 +264,11 @@ mares/
 ├── previsao_mares_antonina.py            # Script Porto de Antonina
 ├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
 ├── previsao_mares_viladoconde.py         # Script Vila do Conde
-├── portos_brasil_historico_portos_hibridos.parquet  # Dataset 1: Portos estuarinos (2020-2024)
+├── portos_brasil_historico_portos_hibridos.parquet  # Dataset 1: Portos estuarinos Sul (2020-2024)
 ├── dados_historicos_complementares_portos_oceanicos_v2.parquet  # Dataset 2 v2: Oceanográficos (2020-2025, 13 portos)
-├── exemplo_uso_dataset_historico.py      # Script de exemplo: como usar os datasets
+├── dados_historicos_portos_hibridos_arco_norte_v2.parquet  # Dataset 3: Arco Norte híbridos+fluviais (2020-2025, 3 portos)
+├── exemplo_uso_dataset_historico.py      # Script de exemplo: Datasets 1 e 2
+├── exemplo_uso_dataset_arco_norte.py     # Script de exemplo: Dataset 3 (Arco Norte)
 ├── RECOMENDACOES_PORTOS_FOZ_RIOS.md      # Análise: portos em foz (com maré)
 ├── ANALISE_PORTOS_FLUVIAIS.md            # Análise: portos fluviais (sem maré)
 ├── RECOMENDACOES_PORTOS_ARCO_NORTE.md    # Recomendações: Arco Norte e granéis sólidos
@@ -1014,6 +1016,27 @@ if __name__ == '__main__':
 
 Para facilitar o desenvolvimento de modelos de ML, este projeto disponibiliza datasets históricos **pré-processados** com dados complementares já integrados.
 
+### 🗺️ Escolha Rápida: Qual Dataset Usar?
+
+| Dataset | Arquivo | Portos | Região | Foco | Use se... |
+|---------|---------|--------|--------|------|-----------|
+| **Dataset 1** | `portos_brasil_historico_portos_hibridos.parquet` | 3 portos (RG, Paranaguá, Antonina) | Sul | Estuarinos | Trabalha com Rio Grande, Paranaguá ou Antonina |
+| **Dataset 2 v2** | `dados_historicos_complementares_portos_oceanicos_v2.parquet` | 13 portos | Nacional | Oceânicos + **Ondas** | Precisa de dados de **ONDAS**, trabalha com Nordeste (Suape, Recife, Pecém, Salvador, Itaqui), Santos, Vitória, SFS, Itajaí |
+| **Dataset 3** ⭐ | `dados_historicos_portos_hibridos_arco_norte_v2.parquet` | 3 portos (Vila do Conde, Santarém, Barcarena) | Arco Norte (PA) | **Híbridos + Fluvial** | Trabalha com **Arco Norte**, precisa de **vazão ANA REAL**, foca em **granéis sólidos** |
+
+**Diferenciais por dataset:**
+
+- **Dataset 1:** Meteorologia INMET local + Maré (4 componentes) + Vazão estimada
+- **Dataset 2 v2:** Meteorologia ERA5 + Oceanografia (ondas, nível do mar) + Indicadores (frente fria, anomalia pressão) + **13 portos**
+- **Dataset 3 ⭐ NOVO:** Meteorologia INMET + Maré (27-35 componentes) + **Vazão ANA REAL** + Vazão montante + Precipitação bacia + Flag híbrido/fluvial
+
+**Combine datasets para:**
+- Comparar INMET vs ERA5 (Datasets 1 e 2)
+- Comparar estuários Sul vs Norte (Datasets 1 e 3)
+- Validar modelos com fontes diferentes
+
+---
+
 ### 🎯 **Dataset 1: Portos Híbridos (Estuarinos)**
 
 **Arquivo:** `portos_brasil_historico_portos_hibridos.parquet` (também disponível em CSV)
@@ -1404,6 +1427,331 @@ features = [
 
 ---
 
+### 🎯 **Dataset 3: Portos Híbridos do Arco Norte (v2)**
+
+**Arquivo:** `dados_historicos_portos_hibridos_arco_norte_v2.parquet`
+
+| Característica | Descrição |
+|----------------|-----------|
+| **Portos incluídos** | **3 portos do Arco Norte**: Vila do Conde (PA), Santarém (PA), Barcarena (PA) |
+| **Tipo de portos** | **Híbridos** (Vila do Conde, Barcarena: maré + vazão fluvial) + **Fluvial puro** (Santarém: apenas vazão) |
+| **Período** | 2020-2025 (6 anos de dados históricos) |
+| **Frequência** | Horária |
+| **Formato** | Parquet (otimizado) |
+| **Foco** | **Granéis sólidos** (soja, milho, bauxita, alumina) |
+
+**🆕 Diferenciais deste dataset:**
+
+✅ **Dados ANA REAIS integrados:**
+- Vazão e cota de estações ANA (Tucuruí, Altamira, Óbidos, Santarém)
+- Vazão montante (estação rio acima) para propagação de onda
+- Dados horários de telemetria (não estimados!)
+
+✅ **Maré astronômica confirmada (DHN):**
+- **Vila do Conde:** Maré significativa (~1-2m amplitude)
+- **Barcarena:** ⭐ **Confirmado pela DHN** - tem influência de maré!
+- **Santarém:** Fluvial puro (maré < 2cm, desprezível)
+
+✅ **Meteorologia INMET local:**
+- Estações: Belém e Santarém
+- Vento, pressão atmosférica e precipitação horários
+
+✅ **Features para ML de portos fluviais:**
+- Precipitação acumulada 30 dias na bacia
+- Vazão montante com lag temporal
+- Flag `tem_mare_astronomica` para diferenciar híbridos de fluviais puros
+- Variável `mes` para sazonalidade (cheias/vazantes)
+
+**Variáveis incluídas:**
+
+| Variável | Tipo | Descrição | Unidade | Disponível para |
+|----------|------|-----------|---------|-----------------|
+| `timestamp` | datetime | Data e hora em UTC | - | Todos |
+| `station` | string | Porto ('VilaDoCondePA', 'SantaremPA', 'BarcenaPA') | - | Todos |
+| **MARÉ ASTRONÔMICA** |
+| `mare_astronomica_m` | float | **Maré calculada (27-35 componentes)** | m | Vila do Conde, Barcarena |
+| `tem_mare_astronomica` | bool | Flag: porto tem maré significativa? | 0/1 | Todos |
+| **DADOS FLUVIAIS (ANA)** |
+| `vazao_rio_m3s` | float | **Vazão do rio (estação local)** | m³/s | Todos |
+| `cota_rio_m` | float | **Nível do rio medido** | m | Todos |
+| `vazao_montante_m3s` | float | **Vazão rio acima** (propagação) | m³/s | Todos |
+| **METEOROLOGIA (INMET)** |
+| `wind_speed_10m` | float | Velocidade do vento a 10m altura | km/h | Todos |
+| `wind_direction_10m` | float | Direção do vento (0-360°) | graus | Todos |
+| `pressure_msl` | float | Pressão ao nível do mar | hPa | Todos |
+| `precip_bacia_30d_mm` | float | **Precipitação acumulada 30 dias na bacia** | mm | Todos |
+| **SAZONALIDADE** |
+| `mes` | int | Mês (1-12) para sazonalidade | - | Todos |
+
+**Estações ANA utilizadas:**
+
+| Porto | Estação Local (vazão/cota) | Estação Montante (propagação) | Bacia |
+|-------|---------------------------|-------------------------------|-------|
+| **Vila do Conde** | 31140000 (Tucuruí) | 16350000 (Altamira) | Amazonas |
+| **Santarém** | 17050001 (Santarém) | 17050000 (Óbidos, ~100km montante) | Amazonas |
+| **Barcarena** | 31140000 (Tucuruí) | 16350000 (Altamira) | Amazonas |
+
+**Estações INMET utilizadas:**
+
+| Porto | Estação INMET | Localização | Distância |
+|-------|---------------|-------------|-----------|
+| **Vila do Conde / Barcarena** | Belém | Belém - PA | ~30-50 km |
+| **Santarém** | Santarém | Santarém - PA | Local |
+
+**Fontes de dados:**
+- **ANA (Agência Nacional de Águas)** - Vazão e cota fluvial (telemetria)
+- **INMET** - Dados meteorológicos (estações oficiais)
+- **Scripts Python deste projeto** - Maré astronômica (27-35 componentes harmônicas)
+- **CHIRPS** - Precipitação acumulada na bacia (dados de satélite)
+- **DHN** - Confirmação de influência de maré em Barcarena
+
+**Como usar:**
+
+```python
+import pandas as pd
+import numpy as np
+
+# Carregar dataset
+df = pd.read_parquet('dados_historicos_portos_hibridos_arco_norte_v2.parquet')
+
+# Converter timestamp
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+# Listar portos disponíveis
+print("Portos disponíveis:")
+print(df['station'].unique())
+# Output: ['VilaDoCondePA', 'SantaremPA', 'BarcenaPA']
+
+# Filtrar porto específico
+df_santarem = df[df['station'] == 'SantaremPA']
+
+# Separar portos híbridos (com maré) vs fluviais puros (sem maré)
+df_hibridos = df[df['tem_mare_astronomica'] == True]   # Vila do Conde, Barcarena
+df_fluviais = df[df['tem_mare_astronomica'] == False]  # Santarém
+
+# Explorar dados fluviais
+print("\n🌊 Estatísticas de Vazão (ANA):")
+print(df.groupby('station')['vazao_rio_m3s'].describe())
+
+print("\n📊 Estatísticas de Maré Astronômica (portos híbridos):")
+print(df_hibridos.groupby('station')['mare_astronomica_m'].describe())
+
+# Análise de sazonalidade (cheias e vazantes)
+print("\n📅 Vazão média por mês (Santarém):")
+sazonalidade = df_santarem.groupby('mes')['vazao_rio_m3s'].mean()
+print(sazonalidade)
+# Esperado: pico em Abril-Maio (cheia), mínimo em Out-Nov (seca)
+```
+
+**Exemplo de uso para ML - Porto Híbrido (Vila do Conde):**
+
+```python
+import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+
+# 1. Carregar dados
+df = pd.read_parquet('dados_historicos_portos_hibridos_arco_norte_v2.parquet')
+
+# 2. Filtrar porto híbrido (Vila do Conde)
+df_porto = df[df['station'] == 'VilaDoCondePA'].copy()
+
+# 3. Criar features adicionais
+# Features temporais para sazonalidade
+df_porto['sin_mes'] = np.sin(2 * np.pi * df_porto['mes'] / 12)
+df_porto['cos_mes'] = np.cos(2 * np.pi * df_porto['mes'] / 12)
+
+# Lag da vazão montante (onda de cheia propaga em ~7-15 dias)
+df_porto['vazao_montante_lag_7d'] = df_porto['vazao_montante_m3s'].shift(7*24)  # 7 dias
+df_porto['vazao_montante_lag_14d'] = df_porto['vazao_montante_m3s'].shift(14*24)  # 14 dias
+
+# Remover NaNs dos lags
+df_porto = df_porto.dropna()
+
+# 4. Definir features para porto HÍBRIDO
+features_hibrido = [
+    # Maré astronômica (baseline forte)
+    'mare_astronomica_m',
+
+    # Efeitos fluviais (complemento)
+    'vazao_rio_m3s',
+    'vazao_montante_lag_7d',
+    'vazao_montante_lag_14d',
+    'precip_bacia_30d_mm',
+
+    # Efeitos meteorológicos
+    'wind_speed_10m',
+    'pressure_msl',
+
+    # Sazonalidade
+    'sin_mes',
+    'cos_mes',
+]
+
+# 5. IMPORTANTE: Você precisa adicionar as observações reais (TARGET)
+# Este dataset NÃO contém o nível de água observado - você deve obtê-lo separadamente
+# Exemplo:
+# observacoes = pd.read_csv('observacoes_viladoconde_2020_2025.csv')
+# df_porto = pd.merge(df_porto, observacoes, on='timestamp', how='inner')
+
+# 6. Treinar modelo (assumindo que você tem o target 'nivel_obs')
+# X = df_porto[features_hibrido]
+# y = df_porto['nivel_obs']  # Você precisa obter isso separadamente!
+#
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+# modelo = GradientBoostingRegressor(n_estimators=500, max_depth=5, learning_rate=0.01)
+# modelo.fit(X_train, y_train)
+#
+# # Analisar importância das features
+# importances = pd.DataFrame({
+#     'feature': features_hibrido,
+#     'importance': modelo.feature_importances_
+# }).sort_values('importance', ascending=False)
+# print(importances)
+#
+# # Esperado para porto híbrido:
+# # mare_astronomica_m: 0.30-0.40 (baseline forte)
+# # vazao_rio_m3s: 0.20-0.30 (complemento fluvial importante)
+# # precip_bacia_30d_mm: 0.10-0.15
+```
+
+**Exemplo de uso para ML - Porto Fluvial Puro (Santarém):**
+
+```python
+# Para Santarém, NÃO usar maré astronômica!
+
+# 1. Carregar dados
+df = pd.read_parquet('dados_historicos_portos_hibridos_arco_norte_v2.parquet')
+df_santarem = df[df['station'] == 'SantaremPA'].copy()
+
+# 2. Criar features temporais
+df_santarem['sin_mes'] = np.sin(2 * np.pi * df_santarem['mes'] / 12)
+df_santarem['cos_mes'] = np.cos(2 * np.pi * df_santarem['mes'] / 12)
+
+# Lag da vazão montante (Óbidos → Santarém: ~2-4 dias)
+df_santarem['vazao_montante_lag_2d'] = df_santarem['vazao_montante_m3s'].shift(2*24)
+df_santarem['vazao_montante_lag_3d'] = df_santarem['vazao_montante_m3s'].shift(3*24)
+
+df_santarem = df_santarem.dropna()
+
+# 3. Features para porto FLUVIAL PURO
+features_fluvial = [
+    # Vazão (dominante)
+    'vazao_rio_m3s',
+    'vazao_montante_lag_2d',
+    'vazao_montante_lag_3d',
+
+    # Precipitação
+    'precip_bacia_30d_mm',
+
+    # Sazonalidade
+    'sin_mes',
+    'cos_mes',
+
+    # SEM mare_astronomica! (seria ruído)
+    # SEM ondas! (não existe em rio)
+]
+
+# 4. Target pode ser cota_rio_m ou nível observado
+# X = df_santarem[features_fluvial]
+# y = df_santarem['cota_rio_m']  # Ou 'nivel_obs' se tiver
+#
+# # Modelo ML
+# modelo.fit(X, y)
+#
+# # Importância esperada:
+# # vazao_rio_m3s: 0.40-0.50 (dominante!)
+# # precip_bacia_30d_mm: 0.20-0.25
+# # vazao_montante_lag_2d: 0.10-0.15
+# # sin_mes/cos_mes: 0.10 (sazonalidade)
+```
+
+**Vantagens deste dataset:**
+- ✅ **Dados ANA REAIS:** Vazão de telemetria, não estimada!
+- ✅ **Maré astronômica de alta precisão:** 27-35 componentes (scripts deste projeto)
+- ✅ **Confirmação DHN:** Barcarena verificado como porto híbrido
+- ✅ **Propagação de onda:** Vazão montante para prever com antecedência
+- ✅ **Precipitação na bacia:** Permite previsão de médio prazo (30-60 dias)
+- ✅ **Flag híbrido/fluvial:** `tem_mare_astronomica` para modelos diferenciados
+- ✅ **Arco Norte completo:** 3 principais portos de granéis sólidos da região
+- ✅ **Sazonalidade:** Variável `mes` para capturar ciclos de cheia/vazante
+
+**Limitações:**
+- ❌ **Sem target:** Observações reais do nível devem ser obtidas separadamente
+- ⚠️ **Estações proxy:** Tucuruí não é exatamente em Vila do Conde/Barcarena (melhor disponível)
+- ⚠️ **Lags a calibrar:** Tempo de propagação montante→local pode variar (calibrar com dados)
+- ⚠️ **Dados ANA:** Podem ter falhas (telemetria dependente de manutenção)
+
+**Comparação com outros datasets:**
+
+| Aspecto | Dataset 1 (Híbridos Sul) | Dataset 2 v2 (Oceanográficos) | **Dataset 3 (Arco Norte)** |
+|---------|-------------------------|-------------------------------|----------------------------|
+| **Portos** | 3 (RG, Paranaguá, Antonina) | 13 (nacional) | **3 (Arco Norte)** |
+| **Região** | Sul | Nacional | **Norte (PA)** |
+| **Tipo** | Estuarinos | Oceânicos + Fluviais | **Híbridos + Fluvial puro** |
+| **Vazão ANA** | ⚠️ Estimada | ❌ Não (erro) | ✅ **REAL (telemetria)** |
+| **Maré astronômica** | ✅ Sim (4 comp.) | ❌ Não | ✅ **Sim (27-35 comp.)** |
+| **Precipitação bacia** | ❌ Não | ❌ Não | ✅ **Sim (30d acum.)** |
+| **Vazão montante** | ❌ Não | ❌ Não | ✅ **Sim (propagação)** |
+| **Flag híbrido/fluvial** | ❌ Não | ❌ Não | ✅ **Sim** |
+| **Ondas** | ❌ Não | ✅ Sim | ❌ Não (fluvial) |
+| **Foco** | Estuários Sul | Exportadores nacionais | **Granéis Arco Norte** |
+| **Período** | 2020-2024 (5 anos) | 2020-2025 (6 anos) | **2020-2025 (6 anos)** |
+
+**Quando usar este dataset:**
+
+✅ **Use Dataset 3 (Arco Norte) se:**
+- Trabalha com **Vila do Conde, Santarém ou Barcarena**
+- Foca em **granéis sólidos** (soja, milho, bauxita, alumina)
+- Precisa de **vazão fluvial REAL** (não estimada)
+- Quer combinar **maré astronômica + vazão** em portos híbridos
+- Desenvolve modelos para **portos fluviais puros** (Santarém)
+- Precisa de **precipitação na bacia** para previsão de médio prazo
+- Quer usar **propagação de onda** (vazão montante)
+
+❌ **NÃO use este dataset se:**
+- Precisa de dados de **ondas** (use Dataset 2 v2 - portos oceânicos)
+- Trabalha com portos fora do Arco Norte (use Datasets 1 ou 2)
+- Foca em portos oceânicos puros (use Dataset 2 v2)
+
+**Combine com outros datasets:**
+```python
+# Exemplo: Comparar comportamento híbrido Sul vs Norte
+
+# Dataset 1: Paranaguá (estuário Sul)
+df_sul = pd.read_parquet('portos_brasil_historico_portos_hibridos.parquet')
+df_sul = df_sul[df_sul['station'] == 'Paranagua']
+
+# Dataset 3: Vila do Conde (estuário Norte)
+df_norte = pd.read_parquet('dados_historicos_portos_hibridos_arco_norte_v2.parquet')
+df_norte = df_norte[df_norte['station'] == 'VilaDoCondePA']
+
+# Comparar importância relativa: maré vs vazão
+# Sul: maré domina (amplitude ~1-2m, vazão menor)
+# Norte: ambos importantes (maré ~1-2m, vazão Amazonas enorme)
+```
+
+**🎯 Casos de uso específicos:**
+
+1. **Previsão de calado para operação de navios graneleiros:**
+   - Features: vazão_rio, mare_astronomica, precip_30d
+   - Target: calado disponível no berço
+   - Lead time: 7-14 dias (usando vazão montante + previsão de chuva)
+
+2. **Otimização de janelas de operação:**
+   - Identificar períodos de maior calado (cheia + preamar)
+   - Combinar sazonalidade (mes) + previsão de maré
+
+3. **Análise de risco de interrupção:**
+   - Vazante severa (Set-Nov) + baixa-mar = risco alto
+   - Usar precip_30d como early warning
+
+4. **Comparação híbridos vs fluviais:**
+   - Modelo único com flag `tem_mare_astronomica`
+   - ML aprende quando usar maré vs quando ignorar
+
+---
+
 ### 📊 Comparação: Datasets Prontos vs Scripts Python
 
 | Aspecto | Datasets Prontos (Parquet) | Scripts Python (Este Projeto) |
@@ -1471,8 +1819,15 @@ df_final = pd.merge(df_completo, df_obs, on='timestamp', how='inner')
 
 Este guia serve como **checklist** para desenvolvedores implementarem um sistema de ML para previsão de marés. Siga as instruções específicas para cada tipo de variável.
 
-**💡 DICA IMPORTANTE:**
-> Se você está trabalhando com **Rio Grande**, **Paranaguá** ou **Antonina**, considere usar o **dataset histórico pronto** (`portos_brasil_historico_portos_hibridos.parquet`) que já contém dados meteorológicos e de maré astronômica integrados para o período 2020-2024. Veja a seção [Datasets Históricos Prontos para Uso](#-datasets-históricos-prontos-para-uso) acima.
+**💡 DICA IMPORTANTE - Use os datasets prontos:**
+
+> **Portos do Sul:** Se trabalha com **Rio Grande**, **Paranaguá** ou **Antonina**, use o **Dataset 1** (`portos_brasil_historico_portos_hibridos.parquet`) com dados meteorológicos e maré astronômica (2020-2024).
+>
+> **Portos do Arco Norte:** ⭐ Se trabalha com **Vila do Conde**, **Santarém** ou **Barcarena**, use o **Dataset 3** (`dados_historicos_portos_hibridos_arco_norte_v2.parquet`) com vazão ANA REAL, maré astronômica de alta precisão e precipitação na bacia (2020-2025).
+>
+> **Portos oceânicos nacionais:** Se trabalha com Santos, Itaqui, Suape, Recife, Pecém, Salvador, Itajaí, Vitória, SFS e precisa de dados de **ondas**, use o **Dataset 2 v2** (`dados_historicos_complementares_portos_oceanicos_v2.parquet`).
+>
+> Veja a seção [Datasets Históricos Prontos para Uso](#-datasets-históricos-prontos-para-uso) acima.
 >
 > Para outros portos ou períodos diferentes, siga o guia completo abaixo.
 
