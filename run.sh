@@ -38,12 +38,16 @@ echo "5) Porto de Paranaguá Cais Leste/TCP (PR) - Micro-maré"
 echo "6) Ilha da Paz (SC) - Micro-maré"
 echo "7) Vila do Conde (PA) - Grande amplitude"
 echo "8) Barcarena (PA) - Porto híbrido"
-echo "9) Paranaguá Cais Oeste I (PR) - Micro-maré"
-echo "10) Porto de Antonina (PR) - Micro-maré com amplificação"
-echo "11) Todos"
+echo "9) Suape (PE) - Estuário Nordeste"
+echo "10) Recife (PE) - Porto histórico"
+echo "11) Salvador (BA) - Baía de Todos os Santos"
+echo "12) Pecém (CE) - Porto oceânico"
+echo "13) Paranaguá Cais Oeste I (PR) - Micro-maré"
+echo "14) Porto de Antonina (PR) - Micro-maré com amplificação"
+echo "15) Todos"
 echo "0) Cancelar"
 echo ""
-read -p "Opção [1-11]: " opcao
+read -p "Opção [1-15]: " opcao
 
 case $opcao in
     1)
@@ -113,12 +117,44 @@ case $opcao in
     9)
         echo ""
         echo "========================================="
+        echo "Calculando: Suape (PE)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_suape.py
+        ;;
+    10)
+        echo ""
+        echo "========================================="
+        echo "Calculando: Recife (PE)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_recife.py
+        ;;
+    11)
+        echo ""
+        echo "========================================="
+        echo "Calculando: Salvador (BA)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_salvador.py
+        ;;
+    12)
+        echo ""
+        echo "========================================="
+        echo "Calculando: Pecém (CE)"
+        echo "========================================="
+        echo ""
+        python3 previsao_mares_pecem.py
+        ;;
+    13)
+        echo ""
+        echo "========================================="
         echo "Calculando: Paranaguá Cais Oeste I (PR)"
         echo "========================================="
         echo ""
         python3 previsao_mares_paranagua_cais_oeste.py
         ;;
-    10)
+    14)
         echo ""
         echo "========================================="
         echo "Calculando: Porto de Antonina (PR)"
@@ -126,7 +162,7 @@ case $opcao in
         echo ""
         python3 previsao_mares_antonina.py
         ;;
-    11)
+    15)
         echo ""
         echo "========================================="
         echo "Calculando: Porto de Itaqui (MA)"
@@ -195,6 +231,42 @@ case $opcao in
             echo "========================================="
             echo ""
             python3 previsao_mares_barcarena.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Suape (PE)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_suape.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Recife (PE)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_recife.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Salvador (BA)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_salvador.py
+        fi
+
+        if [ $? -eq 0 ]; then
+            echo ""
+            echo "========================================="
+            echo "Calculando: Pecém (CE)"
+            echo "========================================="
+            echo ""
+            python3 previsao_mares_pecem.py
         fi
 
         if [ $? -eq 0 ]; then

@@ -82,7 +82,55 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **Para ML:** Combinar maré astronômica + vazão ANA + meteorologia INMET
 - **Nota:** Componentes de águas rasas (M4, MS4) importantes devido à morfologia fluvial
 
-### 9. Paranaguá Cais Oeste I (PR)
+### 9. Suape (PE) ⭐
+- **Referência:** Dados DHN
+- **Tipo de Maré:** Semidiurna (amplitude ~2m)
+- **Nível Médio (NM):** 1.50 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_suape.py`
+- **Saída:** `suape_extremos_2020_2026.csv`
+- **Localização:** Estuário - Maior complexo portuário do Nordeste
+- **⚠️ Porto Estuarino:** Influência de ondas do Atlântico significativa
+- **Para ML:** Combinar maré astronômica + meteorologia + ondas (Dataset 2 v2)
+- **Nota:** Hub industrial e energético de Pernambuco
+
+### 10. Recife (PE) ⭐
+- **Referência:** Dados DHN
+- **Tipo de Maré:** Semidiurna (amplitude ~1.9m)
+- **Nível Médio (NM):** 1.45 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_recife.py`
+- **Saída:** `recife_extremos_2020_2026.csv`
+- **Localização:** Estuário do Rio Capibaribe - Porto histórico
+- **⚠️ Porto Estuarino:** Águas rasas significativas (M4, MS4)
+- **Para ML:** Combinar maré astronômica + meteorologia + ondas (Dataset 2 v2)
+- **Nota:** Porto histórico de Pernambuco
+
+### 11. Salvador (BA) ⭐
+- **Referência:** Dados DHN
+- **Tipo de Maré:** Semidiurna (amplitude ~1.7m)
+- **Nível Médio (NM):** 1.35 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_salvador.py`
+- **Saída:** `salvador_extremos_2020_2026.csv`
+- **Localização:** Baía de Todos os Santos
+- **⚠️ Porto em Baía:** Águas protegidas mas com influência oceânica
+- **Para ML:** Combinar maré astronômica + meteorologia + ondas (Dataset 2 v2)
+- **Nota:** Principal porto da Bahia
+
+### 12. Pecém (CE) ⭐
+- **Referência:** Dados DHN
+- **Tipo de Maré:** Semidiurna (amplitude ~2.3m)
+- **Nível Médio (NM):** 1.55 m
+- **Constantes:** 35 componentes harmônicas
+- **Script:** `previsao_mares_pecem.py`
+- **Saída:** `pecem_extremos_2020_2026.csv`
+- **Localização:** Porto oceânico - Hub industrial e energético do Ceará
+- **⚠️ Porto Oceânico:** Maior amplitude M2 entre os portos do Nordeste (1.123m)
+- **Para ML:** Combinar maré astronômica + meteorologia + ondas (Dataset 2 v2)
+- **Nota:** Componentes de águas rasas menores (porto oceânico)
+
+### 13. Paranaguá Cais Oeste I (PR)
 - **Ficha:** 60151
 - **Tipo de Maré:** Micro-maré com distorção (amplitude < 2m)
 - **Nível Médio (NM):** 0.916 m
@@ -94,7 +142,7 @@ Scripts para cálculo de preamares e baixa-mares de portos brasileiros utilizand
 - **⚠️ Observação:** Complementa Cais Leste para modelagem de gradiente e propagação no canal
 - **Para ML:** Lag temporal entre Cais Oeste e Cais Leste permite prever velocidade de propagação da onda de maré
 
-### 10. Porto de Antonina (PR)
+### 14. Porto de Antonina (PR)
 - **Ficha:** 60110
 - **Tipo de Maré:** Micro-maré com amplificação por efeito funil
 - **Nível Médio (NM):** 1.11 m
@@ -243,6 +291,26 @@ python previsao_mares_viladoconde.py
 python previsao_mares_barcarena.py
 ```
 
+**Suape:**
+```bash
+python previsao_mares_suape.py
+```
+
+**Recife:**
+```bash
+python previsao_mares_recife.py
+```
+
+**Salvador:**
+```bash
+python previsao_mares_salvador.py
+```
+
+**Pecém:**
+```bash
+python previsao_mares_pecem.py
+```
+
 ### Opção 2: Usar script auxiliar interativo
 
 ```bash
@@ -286,6 +354,10 @@ mares/
 ├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
 ├── previsao_mares_viladoconde.py         # Script Vila do Conde
 ├── previsao_mares_barcarena.py           # Script Barcarena
+├── previsao_mares_suape.py               # Script Suape (PE)
+├── previsao_mares_recife.py              # Script Recife (PE)
+├── previsao_mares_salvador.py            # Script Salvador (BA)
+├── previsao_mares_pecem.py               # Script Pecém (CE)
 ├── portos_brasil_historico_portos_hibridos.parquet  # Dataset 1: Portos estuarinos Sul (2020-2024)
 ├── dados_historicos_complementares_portos_oceanicos_v2.parquet  # Dataset 2 v2: Oceanográficos (2020-2025, 13 portos)
 ├── dados_historicos_portos_hibridos_arco_norte_v2.parquet  # Dataset 3: Arco Norte híbridos+fluviais (2020-2025, 3 portos)
