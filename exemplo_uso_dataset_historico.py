@@ -3,7 +3,7 @@
 Exemplo de Uso dos Datasets Históricos Prontos
 Datasets:
   1. portos_brasil_historico_portos_hibridos.parquet (Estuarinos)
-  2. dados_historicos_meteorologicos_complementares.parquet (Oceanográficos)
+  2. dados_historicos_complementares_portos_oceanicos_v2.parquet (Oceanográficos)
 
 Este script demonstra como usar os datasets históricos pré-processados
 que contêm dados meteorológicos, oceanográficos e maré astronômica
@@ -255,11 +255,11 @@ def explorar_dataset_oceanografico():
     print("=" * 60)
 
     try:
-        df = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+        df = pd.read_parquet('dados_historicos_complementares_portos_oceanicos_v2.parquet')
         print("✅ Dataset oceanográfico carregado com sucesso!")
     except FileNotFoundError:
         print("❌ Arquivo não encontrado!")
-        print("   'dados_historicos_meteorologicos_complementares.parquet'")
+        print("   'dados_historicos_complementares_portos_oceanicos_v2.parquet'")
         print("   não está no diretório atual.")
         return
 
@@ -271,7 +271,8 @@ def explorar_dataset_oceanografico():
 
     # Portos oceânicos vs fluviais
     portos_oceanicos = ['Santos', 'Paranagua', 'Itaqui', 'RioGrande',
-                        'SaoFranciscoDoSul', 'Vitoria']
+                        'SaoFranciscoDoSul', 'Vitoria', 'Suape', 'Itajai',
+                        'Recife', 'Pecem', 'Salvador']
     portos_fluviais = ['Santarem', 'Barcarena']
 
     df_oceanicos = df[df['station'].isin(portos_oceanicos)]
@@ -353,7 +354,7 @@ def comparar_datasets():
 
     try:
         df1 = pd.read_parquet('portos_brasil_historico_portos_hibridos.parquet')
-        df2 = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+        df2 = pd.read_parquet('dados_historicos_complementares_portos_oceanicos_v2.parquet')
     except FileNotFoundError as e:
         print(f"❌ Arquivo não encontrado: {e}")
         return

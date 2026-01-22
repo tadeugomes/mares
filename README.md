@@ -265,8 +265,10 @@ mares/
 ├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
 ├── previsao_mares_viladoconde.py         # Script Vila do Conde
 ├── portos_brasil_historico_portos_hibridos.parquet  # Dataset 1: Portos estuarinos (2020-2024)
-├── dados_historicos_meteorologicos_complementares.parquet  # Dataset 2: Oceanográficos (2020-2025)
+├── dados_historicos_complementares_portos_oceanicos_v2.parquet  # Dataset 2 v2: Oceanográficos (2020-2025, 13 portos)
 ├── exemplo_uso_dataset_historico.py      # Script de exemplo: como usar os datasets
+├── RECOMENDACOES_PORTOS_FOZ_RIOS.md      # Análise: portos em foz (com maré)
+├── ANALISE_PORTOS_FLUVIAIS.md            # Análise: portos fluviais (sem maré)
 ├── requirements.txt                       # Dependências Python
 ├── run.sh                                 # Script auxiliar de execução
 └── README.md                              # Esta documentação
@@ -1106,18 +1108,19 @@ features.extend(['vento_sul', 'vento_sul_vel'])
 
 ---
 
-### 🎯 **Dataset 2: Dados Oceanográficos e Meteorológicos Completos**
+### 🎯 **Dataset 2: Dados Oceanográficos e Meteorológicos Completos (v2)**
 
-**Arquivo:** `dados_historicos_meteorologicos_complementares.parquet` (também disponível em CSV)
+**Arquivo:** `dados_historicos_complementares_portos_oceanicos_v2.parquet` (também disponível em CSV)
 
 | Característica | Descrição |
 |----------------|-----------|
-| **Portos incluídos** | Santos (SP), Paranaguá (PR), Itaqui (MA), Rio Grande (RS), São Francisco do Sul (SC), Vitória (ES), Santarém (PA), Barcarena (PA) |
-| **Tipo de portos** | Oceânicos/Costeiros + Fluviais (Santarém, Barcarena) |
+| **Portos incluídos** | **13 portos**: Santos (SP), Paranaguá (PR), Itaqui (MA), Rio Grande (RS), São Francisco do Sul (SC), Vitória (ES), Santarém (PA), Barcarena (PA), **Suape (PE)**, **Itajaí (SC)**, **Recife (PE)**, **Pecém (CE)**, **Salvador (BA)** |
+| **Novos na v2** | ⭐ Suape, Itajaí, Recife, Pecém, Salvador |
+| **Tipo de portos** | Oceânicos/Costeiros (11) + Fluviais (2: Santarém, Barcarena) |
 | **Período** | 2020-2025 (6 anos de dados históricos) |
 | **Frequência** | Horária |
 | **Formato** | Parquet (otimizado) + CSV (visualização) |
-| **Foco** | Portos exportadores de granéis sólidos vegetais |
+| **Foco** | Portos exportadores + **Cobertura completa Nordeste** |
 
 **Variáveis incluídas:**
 
@@ -1134,13 +1137,29 @@ features.extend(['vento_sul', 'vento_sul_vel'])
 | `pressao_anomalia` | float | Anomalia de pressão (atual - média histórica) | hPa | Todos |
 | `frente_fria` | bool | Indicador de frente fria** | 0/1 | Todos |
 
-**\*Oceânicos:** Santos, Paranaguá, Itaqui, Rio Grande, São Francisco do Sul, Vitória
-**\*\*Fluviais:** Santarém, Barcarena (sem dados de ondas/maré oceânica)
+**\*Oceânicos (11):** Santos, Paranaguá, Itaqui, Rio Grande, São Francisco do Sul, Vitória, **Suape, Itajaí, Recife, Pecém, Salvador**
+**\*\*Fluviais (2):** Santarém, Barcarena (sem dados de ondas/maré oceânica)
 
 **Fontes de dados:**
 - **Open-Meteo API** - Dados meteorológicos e oceanográficos
 - **Modelo ERA5** (ECMWF/Copernicus) - Reanálise meteorológica
 - **Modelo ERA5-Ocean** - Reanálise oceanográfica (ondas, nível do mar)
+
+**🆕 Novidades da v2:**
+
+✅ **+5 portos adicionados (Nordeste + SC):**
+1. **Suape (PE)** - Maior complexo portuário do Nordeste, estuário
+2. **Itajaí (SC)** - Maior porto de contêineres de SC, foz Rio Itajaí-Açu
+3. **Recife (PE)** - Porto histórico, estuário Rio Capibaribe
+4. **Pecém (CE)** - Hub industrial e energético do Ceará
+5. **Salvador (BA)** - Porto da Baía de Todos os Santos
+
+✅ **Cobertura geográfica completa:**
+- **Nordeste:** Itaqui (MA), Pecém (CE), Salvador (BA), Recife (PE), Suape (PE) - **5 portos!**
+- **Santa Catarina:** São Francisco do Sul, Itajaí (+ Ilha da Paz nos scripts) - **3 locais!**
+- **Sudeste:** Santos (SP), Vitória (ES)
+- **Sul:** Paranaguá (PR), Rio Grande (RS)
+- **Norte:** Santarém (PA), Barcarena (PA)
 
 **⚠️ Notas importantes:**
 
@@ -1151,6 +1170,8 @@ features.extend(['vento_sul', 'vento_sul_vel'])
 > - Vento do quadrante Sul (135-225°)
 > - Útil como feature categórica para ML
 
+> **Dados ANA (vazão fluvial):** ⚠️ O WebService da ANA apresentou erro de autenticação durante a coleta ("Login failed for user"). Por isso, **esta versão v2 NÃO contém dados de vazão fluvial**. Todos os dados meteorológicos e oceanográficos foram coletados com sucesso.
+
 > **Coordenadas ajustadas:** Itaqui (MA) teve coordenadas ajustadas para mar aberto para capturar dados de ondas do modelo oceânico.
 
 **Como usar:**
@@ -1159,7 +1180,7 @@ features.extend(['vento_sul', 'vento_sul_vel'])
 import pandas as pd
 
 # Carregar dataset
-df = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+df = pd.read_parquet('dados_historicos_complementares_portos_oceanicos_v2.parquet')
 
 # Converter timestamp
 df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -1173,7 +1194,8 @@ df_santos = df[df['station'] == 'Santos']
 
 # Separar portos oceânicos vs fluviais
 portos_oceanicos = ['Santos', 'Paranagua', 'Itaqui', 'RioGrande',
-                    'SaoFranciscoDoSul', 'Vitoria']
+                    'SaoFranciscoDoSul', 'Vitoria', 'Suape', 'Itajai',
+                    'Recife', 'Pecem', 'Salvador']
 portos_fluviais = ['Santarem', 'Barcarena']
 
 df_oceanicos = df[df['station'].isin(portos_oceanicos)]
@@ -1197,7 +1219,7 @@ import pandas as pd
 import numpy as np
 
 # 1. Carregar dados de Santos
-df = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+df = pd.read_parquet('dados_historicos_complementares_portos_oceanicos_v2.parquet')
 df_santos = df[df['station'] == 'Santos'].copy()
 
 # 2. Converter vento de km/h para m/s
@@ -1302,38 +1324,42 @@ features = [
 
 **Comparação com Dataset 1:**
 
-| Aspecto | Dataset 1 (Híbridos) | Dataset 2 (Oceanográficos) |
+| Aspecto | Dataset 1 (Híbridos) | Dataset 2 v2 (Oceanográficos) |
 |---------|---------------------|---------------------------|
-| **Portos** | 3 (Rio Grande, Paranaguá, Antonina) | 8 (Santos, Paranaguá, Itaqui, etc.) |
-| **Tipo** | Estuarinos | Oceânicos + Fluviais |
+| **Portos** | 3 (RG, Paranaguá, Antonina) | **13** (Santos, Paranaguá, Itaqui, RG, SFS, Vitória, Suape, Itajaí, Recife, Pecém, Salvador, Santarém, Barcarena) |
+| **Nordeste** | ❌ Não | ✅ **5 portos** (Itaqui, Pecém, Salvador, Recife, Suape) |
+| **Tipo** | Estuarinos | Oceânicos (11) + Fluviais (2) |
 | **Ondas** | ❌ Não | ✅ Sim (altura, período) |
 | **Nível do mar** | ❌ Não | ✅ Sim (ERA5-Ocean) |
 | **Frente fria** | ❌ Não | ✅ Sim (indicador) |
 | **Anomalia pressão** | ❌ Não | ✅ Sim |
-| **Vazão fluvial** | ✅ Sim (estimada) | ❌ Não |
-| **Fonte** | INMET (estações locais) | ERA5 (reanálise global) |
-| **Período** | 2020-2024 | 2020-2025 |
+| **Vazão fluvial** | ✅ Sim (estimada) | ⚠️ **Não (erro ANA)** |
+| **Fonte** | INMET (locais) | ERA5 (reanálise global) |
+| **Período** | 2020-2024 (5 anos) | 2020-2025 (6 anos) |
 
 **Quando usar cada dataset:**
 
 **Use Dataset 1 se:**
 - Trabalha com Rio Grande, Paranaguá ou Antonina
-- Precisa de vazão fluvial
+- Precisa de **vazão fluvial** (estimada)
 - Quer dados de estações INMET locais
-- Foca em portos estuarinos
+- Foca em portos estuarinos específicos
 
-**Use Dataset 2 se:**
-- Trabalha com Santos, Itaqui, Vitória, São Francisco do Sul, Santarém, Barcarena
-- Precisa de dados de ONDAS (ressacas!)
-- Precisa do NÍVEL DO MAR modelado
-- Quer indicador de frente fria pronto
+**Use Dataset 2 v2 se:**
+- Trabalha com **NORDESTE** (Suape, Recife, Pecém, Salvador, Itaqui) ⭐
+- Trabalha com **Santos, Itajaí, Vitória, São Francisco do Sul**
+- Precisa de dados de **ONDAS** (ressacas!)
+- Precisa do **NÍVEL DO MAR** modelado
+- Quer **indicador de frente fria** pronto
 - Trabalha com eventos extremos costeiros
+- Precisa de **cobertura nacional ampla** (13 portos)
 
 **Use AMBOS se:**
-- Trabalha com Paranaguá ou Rio Grande (únicos portos em comum)
+- Trabalha com **Paranaguá** ou **Rio Grande** (únicos em comum)
 - Quer comparar INMET vs ERA5
-- Quer validar modelos com fontes diferentes
-- Desenvolve sistema multi-porto
+- Quer combinar: vazão (Dataset 1) + ondas (Dataset 2)
+- Desenvolve sistema multi-porto nacional
+- Valida modelos com fontes diferentes
 
 ---
 
