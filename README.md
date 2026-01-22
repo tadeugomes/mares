@@ -264,8 +264,9 @@ mares/
 ├── previsao_mares_antonina.py            # Script Porto de Antonina
 ├── previsao_mares_ilhadapaz.py           # Script Ilha da Paz
 ├── previsao_mares_viladoconde.py         # Script Vila do Conde
-├── portos_brasil_historico_portos_hibridos.parquet  # Dataset histórico pronto (2020-2024)
-├── exemplo_uso_dataset_historico.py      # Script de exemplo: como usar o dataset
+├── portos_brasil_historico_portos_hibridos.parquet  # Dataset 1: Portos estuarinos (2020-2024)
+├── dados_historicos_meteorologicos_complementares.parquet  # Dataset 2: Oceanográficos (2020-2025)
+├── exemplo_uso_dataset_historico.py      # Script de exemplo: como usar os datasets
 ├── requirements.txt                       # Dependências Python
 ├── run.sh                                 # Script auxiliar de execução
 └── README.md                              # Esta documentação
@@ -1105,11 +1106,234 @@ features.extend(['vento_sul', 'vento_sul_vel'])
 
 ---
 
-### 🎯 **Dataset 2: [Nome do segundo dataset]**
+### 🎯 **Dataset 2: Dados Oceanográficos e Meteorológicos Completos**
 
-**Arquivo:** `[nome_do_arquivo].parquet`
+**Arquivo:** `dados_historicos_meteorologicos_complementares.parquet` (também disponível em CSV)
 
-[Documentação será adicionada quando o arquivo for especificado]
+| Característica | Descrição |
+|----------------|-----------|
+| **Portos incluídos** | Santos (SP), Paranaguá (PR), Itaqui (MA), Rio Grande (RS), São Francisco do Sul (SC), Vitória (ES), Santarém (PA), Barcarena (PA) |
+| **Tipo de portos** | Oceânicos/Costeiros + Fluviais (Santarém, Barcarena) |
+| **Período** | 2020-2025 (6 anos de dados históricos) |
+| **Frequência** | Horária |
+| **Formato** | Parquet (otimizado) + CSV (visualização) |
+| **Foco** | Portos exportadores de granéis sólidos vegetais |
+
+**Variáveis incluídas:**
+
+| Variável | Tipo | Descrição | Unidade | Disponível para |
+|----------|------|-----------|---------|-----------------|
+| `timestamp` | datetime | Data e hora em UTC | - | Todos |
+| `station` | string | Identificação do porto | - | Todos |
+| `wind_speed_10m` | float | Velocidade do vento a 10m altura | km/h | Todos |
+| `wind_direction_10m` | float | Direção do vento (0-360°) | graus | Todos |
+| `pressure_msl` | float | Pressão ao nível do mar | hPa | Todos |
+| `wave_height` | float | Altura significativa de onda (Hs) | m | Apenas oceânicos* |
+| `wave_period` | float | Período de onda (Tp) | s | Apenas oceânicos* |
+| `sea_level_height_msl` | float | **Nível do mar incluindo marés** | m | Apenas oceânicos* |
+| `pressao_anomalia` | float | Anomalia de pressão (atual - média histórica) | hPa | Todos |
+| `frente_fria` | bool | Indicador de frente fria** | 0/1 | Todos |
+
+**\*Oceânicos:** Santos, Paranaguá, Itaqui, Rio Grande, São Francisco do Sul, Vitória
+**\*\*Fluviais:** Santarém, Barcarena (sem dados de ondas/maré oceânica)
+
+**Fontes de dados:**
+- **Open-Meteo API** - Dados meteorológicos e oceanográficos
+- **Modelo ERA5** (ECMWF/Copernicus) - Reanálise meteorológica
+- **Modelo ERA5-Ocean** - Reanálise oceanográfica (ondas, nível do mar)
+
+**⚠️ Notas importantes:**
+
+> **`sea_level_height_msl`** - Esta variável JÁ INCLUI a maré astronômica modelada pelo ERA5! Ela representa o nível total do mar (maré + efeitos meteorológicos + ondas). Para modelos de ML, compare com as previsões astronômicas deste projeto para extrair a componente meteorológica.
+
+> **`frente_fria`** - Indicador simplificado baseado em:
+> - Queda de pressão > 2 hPa em 6 horas
+> - Vento do quadrante Sul (135-225°)
+> - Útil como feature categórica para ML
+
+> **Coordenadas ajustadas:** Itaqui (MA) teve coordenadas ajustadas para mar aberto para capturar dados de ondas do modelo oceânico.
+
+**Como usar:**
+
+```python
+import pandas as pd
+
+# Carregar dataset
+df = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+
+# Converter timestamp
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+# Listar portos disponíveis
+print("Portos disponíveis:")
+print(df['station'].unique())
+
+# Filtrar porto específico
+df_santos = df[df['station'] == 'Santos']
+
+# Separar portos oceânicos vs fluviais
+portos_oceanicos = ['Santos', 'Paranagua', 'Itaqui', 'RioGrande',
+                    'SaoFranciscoDoSul', 'Vitoria']
+portos_fluviais = ['Santarem', 'Barcarena']
+
+df_oceanicos = df[df['station'].isin(portos_oceanicos)]
+df_fluviais = df[df['station'].isin(portos_fluviais)]
+
+# Explorar ondas (apenas portos oceânicos)
+print("\n🌊 Estatísticas de Ondas (portos oceânicos):")
+print(df_oceanicos.groupby('station')['wave_height'].describe())
+
+# Identificar eventos de frente fria
+df_frentes = df[df['frente_fria'] == True]
+print(f"\n❄️  Total de eventos de frente fria: {len(df_frentes):,}")
+print(f"   Por porto:")
+print(df_frentes['station'].value_counts())
+```
+
+**Exemplo de uso para ML - Santos (Ressacas):**
+
+```python
+import pandas as pd
+import numpy as np
+
+# 1. Carregar dados de Santos
+df = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+df_santos = df[df['station'] == 'Santos'].copy()
+
+# 2. Converter vento de km/h para m/s
+df_santos['wind_speed_ms'] = df_santos['wind_speed_10m'] / 3.6
+
+# 3. Vento sul (importante para Santos - ressacas)
+df_santos['vento_sul'] = (
+    (df_santos['wind_direction_10m'] >= 135) &
+    (df_santos['wind_direction_10m'] <= 225)
+).astype(int)
+
+df_santos['vento_sul_speed'] = (
+    df_santos['wind_speed_ms'] * df_santos['vento_sul']
+)
+
+# 4. Features de ondas (importante para ressacas)
+df_santos['onda_significativa'] = df_santos['wave_height'] > 2.5  # Ressaca
+df_santos['onda_alta'] = df_santos['wave_height'] > 3.5  # Ressaca forte
+
+# 5. Rolling features (persistência)
+df_santos['wave_height_max_24h'] = df_santos['wave_height'].rolling(24).max()
+df_santos['wind_speed_max_24h'] = df_santos['wind_speed_ms'].rolling(24).max()
+df_santos['vento_sul_horas_24h'] = df_santos['vento_sul'].rolling(24).sum()
+
+# 6. Features para modelo (prever sobre-elevação do nível)
+features = [
+    'wind_speed_ms',
+    'wind_direction_10m',
+    'pressure_msl',
+    'pressao_anomalia',
+    'wave_height',
+    'wave_period',
+    'wave_height_max_24h',
+    'vento_sul',
+    'vento_sul_speed',
+    'vento_sul_horas_24h',
+    'frente_fria',
+    'onda_significativa'
+]
+
+# 7. Se você tem observações reais de nível:
+# df_obs = pd.read_csv('observacoes_santos.csv')
+# df_final = pd.merge(df_santos, df_obs, on='timestamp')
+#
+# # Carregar maré astronômica de alta precisão
+# df_mare = pd.read_csv('santos_extremos_2020_2026.csv')
+# df_mare_hourly = interpolar_mare(df_mare)  # Interpolar para horário
+# df_final = pd.merge(df_final, df_mare_hourly, on='timestamp')
+#
+# # Target: sobre-elevação meteorológica (storm surge)
+# y = df_final['nivel_obs_real'] - df_final['mare_astronomica']
+#
+# X = df_final[features]
+# modelo.fit(X, y)  # Treinar modelo para prever desvio meteorológico
+```
+
+**Aplicações específicas por variável:**
+
+**🌊 `wave_height` + `wave_period` (Ondas):**
+- **Santos:** Ressacas adicionam +0.5 a +1.5m ao nível previsto
+- **Rio Grande:** Ondulações do sul afetam operações portuárias
+- **Itaqui:** Ondas do Atlântico equatorial influenciam baía
+- **Uso em ML:** Feature crítica para prever sobre-elevação do nível
+
+**💨 `wind_speed` + `wind_direction`:**
+- **Vento Sul:** Empurra água para a costa (wind setup)
+- **Vento Norte:** Puxa água para fora (wind setdown)
+- **Ventos > 15 m/s:** Efeito significativo no nível
+- **Uso em ML:** Persistência e direção são features importantes
+
+**🌡️ `pressure_msl` + `pressao_anomalia`:**
+- **Efeito barômetro invertido:** -1 hPa ≈ +1 cm nível do mar
+- **Anomalia negativa:** Ciclones, baixa pressão → nível sobe
+- **Uso em ML:** Anomalia é mais informativa que pressão absoluta
+
+**❄️ `frente_fria` (Indicador booleano):**
+- **Feature categórica** pronta para uso
+- **Combina:** Queda pressão + vento sul
+- **Santos/Paranaguá:** Maioria dos eventos extremos
+- **Uso em ML:** Feature de alta importância para classificação
+
+**📊 `sea_level_height_msl`:**
+- **Nível TOTAL do mar** (não é target!)
+- **Inclui:** Maré astronômica + meteorológica + ondas
+- **Uso:** Comparar com observações reais ou extrair componente meteorológica
+- **Para treino:** Use como baseline, não como feature
+
+**Vantagens deste dataset:**
+- ✅ **Cobertura ampla:** 8 portos, incluindo todos os grandes exportadores
+- ✅ **Dados oceanográficos:** Ondas e nível do mar incluídos
+- ✅ **Features avançadas:** Anomalia de pressão, frente fria
+- ✅ **Período estendido:** 2020-2025 (6 anos)
+- ✅ **Alta qualidade:** Dados de reanálise ERA5 (padrão científico)
+- ✅ **Pronto para uso:** Sem necessidade de download externo
+- ✅ **Portos fluviais:** Santarém e Barcarena também incluídos
+
+**Limitações:**
+- ❌ **Sem target:** Observações reais do nível devem ser obtidas separadamente
+- ⚠️ **Resolução espacial:** ERA5 tem ~31km (pode não capturar efeitos locais muito pequenos)
+- ⚠️ **`sea_level_height_msl` é modelado:** Não são observações reais, são da reanálise
+- ⚠️ **Portos fluviais:** Sem dados de ondas/maré oceânica (normal, são rios)
+
+**Comparação com Dataset 1:**
+
+| Aspecto | Dataset 1 (Híbridos) | Dataset 2 (Oceanográficos) |
+|---------|---------------------|---------------------------|
+| **Portos** | 3 (Rio Grande, Paranaguá, Antonina) | 8 (Santos, Paranaguá, Itaqui, etc.) |
+| **Tipo** | Estuarinos | Oceânicos + Fluviais |
+| **Ondas** | ❌ Não | ✅ Sim (altura, período) |
+| **Nível do mar** | ❌ Não | ✅ Sim (ERA5-Ocean) |
+| **Frente fria** | ❌ Não | ✅ Sim (indicador) |
+| **Anomalia pressão** | ❌ Não | ✅ Sim |
+| **Vazão fluvial** | ✅ Sim (estimada) | ❌ Não |
+| **Fonte** | INMET (estações locais) | ERA5 (reanálise global) |
+| **Período** | 2020-2024 | 2020-2025 |
+
+**Quando usar cada dataset:**
+
+**Use Dataset 1 se:**
+- Trabalha com Rio Grande, Paranaguá ou Antonina
+- Precisa de vazão fluvial
+- Quer dados de estações INMET locais
+- Foca em portos estuarinos
+
+**Use Dataset 2 se:**
+- Trabalha com Santos, Itaqui, Vitória, São Francisco do Sul, Santarém, Barcarena
+- Precisa de dados de ONDAS (ressacas!)
+- Precisa do NÍVEL DO MAR modelado
+- Quer indicador de frente fria pronto
+- Trabalha com eventos extremos costeiros
+
+**Use AMBOS se:**
+- Trabalha com Paranaguá ou Rio Grande (únicos portos em comum)
+- Quer comparar INMET vs ERA5
+- Quer validar modelos com fontes diferentes
+- Desenvolve sistema multi-porto
 
 ---
 

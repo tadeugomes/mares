@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-Exemplo de Uso do Dataset Histórico Pronto
-Dataset: portos_brasil_historico_portos_hibridos.parquet
+Exemplo de Uso dos Datasets Históricos Prontos
+Datasets:
+  1. portos_brasil_historico_portos_hibridos.parquet (Estuarinos)
+  2. dados_historicos_meteorologicos_complementares.parquet (Oceanográficos)
 
-Este script demonstra como usar o dataset histórico pré-processado
-que contém dados meteorológicos e maré astronômica para Rio Grande,
-Paranaguá e Antonina (2020-2024).
+Este script demonstra como usar os datasets históricos pré-processados
+que contêm dados meteorológicos, oceanográficos e maré astronômica
+para diversos portos brasileiros.
 """
 
 import pandas as pd
@@ -245,12 +247,171 @@ def exemplo_preparacao_ml():
     print("   X = df_final[features_ml]")
     print("   y = df_final['nivel_observado']")
 
-if __name__ == '__main__':
-    # Executar todas as análises
-    explorar_dataset()
-    comparar_portos()
-    exemplo_preparacao_ml()
+def explorar_dataset_oceanografico():
+    """Explora o dataset oceanográfico complementar"""
 
     print("\n" + "=" * 60)
-    print("✅ Análise concluída!")
+    print("EXPLORANDO DATASET OCEANOGRÁFICO E METEOROLÓGICO")
     print("=" * 60)
+
+    try:
+        df = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+        print("✅ Dataset oceanográfico carregado com sucesso!")
+    except FileNotFoundError:
+        print("❌ Arquivo não encontrado!")
+        print("   'dados_historicos_meteorologicos_complementares.parquet'")
+        print("   não está no diretório atual.")
+        return
+
+    # Informações gerais
+    print("\n📊 INFORMAÇÕES GERAIS:")
+    print(f"   Total de registros: {len(df):,}")
+    print(f"   Período: {df['timestamp'].min()} até {df['timestamp'].max()}")
+    print(f"   Portos: {', '.join(df['station'].unique())}")
+
+    # Portos oceânicos vs fluviais
+    portos_oceanicos = ['Santos', 'Paranagua', 'Itaqui', 'RioGrande',
+                        'SaoFranciscoDoSul', 'Vitoria']
+    portos_fluviais = ['Santarem', 'Barcarena']
+
+    df_oceanicos = df[df['station'].isin(portos_oceanicos)]
+    df_fluviais = df[df['station'].isin(portos_fluviais)]
+
+    print(f"\n   Portos oceânicos: {len(portos_oceanicos)}")
+    print(f"   Portos fluviais: {len(portos_fluviais)}")
+
+    # Estatísticas de ondas (apenas oceânicos)
+    print("\n🌊 ONDAS (Portos Oceânicos):")
+    wave_stats = df_oceanicos.groupby('station')['wave_height'].describe()[['mean', 'max', 'std']]
+    print(wave_stats)
+
+    # Onda máxima registrada
+    idx_max_wave = df_oceanicos['wave_height'].idxmax()
+    max_wave_row = df_oceanicos.loc[idx_max_wave]
+    print(f"\n   🌊 Maior onda registrada:")
+    print(f"      {max_wave_row['wave_height']:.2f} m em {max_wave_row['station']}")
+    print(f"      Data: {max_wave_row['timestamp']}")
+
+    # Eventos de frente fria
+    df_frentes = df[df['frente_fria'] == True]
+    print(f"\n❄️  FRENTES FRIAS:")
+    print(f"   Total de eventos: {len(df_frentes):,}")
+    print(f"   Por porto:")
+    frentes_por_porto = df_frentes['station'].value_counts()
+    for porto, count in frentes_por_porto.items():
+        pct = (count / len(df[df['station'] == porto])) * 100
+        print(f"      {porto:20s}: {count:5d} eventos ({pct:.1f}% do tempo)")
+
+    # Anomalia de pressão
+    print(f"\n🌡️  ANOMALIA DE PRESSÃO:")
+    anomalia_stats = df.groupby('station')['pressao_anomalia'].describe()[['mean', 'min', 'max']]
+    print(anomalia_stats)
+
+    # Exemplo Santos - Ressacas
+    print("\n" + "=" * 60)
+    print("EXEMPLO: SANTOS - ANÁLISE DE RESSACAS")
+    print("=" * 60)
+
+    df_santos = df[df['station'] == 'Santos'].copy()
+
+    # Definir ressacas
+    df_santos['ressaca'] = df_santos['wave_height'] > 2.5
+    df_santos['ressaca_forte'] = df_santos['wave_height'] > 3.5
+
+    n_ressacas = df_santos['ressaca'].sum()
+    n_ressacas_fortes = df_santos['ressaca_forte'].sum()
+
+    print(f"\n🌊 Eventos de Ressaca em Santos:")
+    print(f"   Ressacas (>2.5m): {n_ressacas:,} horas ({n_ressacas/len(df_santos)*100:.1f}% do tempo)")
+    print(f"   Ressacas fortes (>3.5m): {n_ressacas_fortes:,} horas ({n_ressacas_fortes/len(df_santos)*100:.1f}% do tempo)")
+
+    # Correlação ressaca + vento sul
+    df_santos['vento_sul'] = (
+        (df_santos['wind_direction_10m'] >= 135) &
+        (df_santos['wind_direction_10m'] <= 225)
+    ).astype(int)
+
+    ressacas_vento_sul = df_santos[df_santos['ressaca'] & df_santos['vento_sul']].shape[0]
+    print(f"\n💨 Ressacas com Vento Sul: {ressacas_vento_sul:,} ({ressacas_vento_sul/n_ressacas*100:.1f}% das ressacas)")
+
+    # Sazonalidade das ressacas
+    df_santos['mes'] = pd.to_datetime(df_santos['timestamp']).dt.month
+    ressacas_por_mes = df_santos[df_santos['ressaca']].groupby('mes').size()
+    mes_mais_ressacas = ressacas_por_mes.idxmax()
+    print(f"\n📅 Sazonalidade:")
+    print(f"   Mês com mais ressacas: {mes_mais_ressacas} ({ressacas_por_mes[mes_mais_ressacas]} eventos)")
+
+    print("\n💡 DICA: Combine este dataset com as previsões astronômicas")
+    print("   deste projeto para separar efeitos meteorológicos da maré!")
+
+def comparar_datasets():
+    """Compara os dois datasets disponíveis"""
+
+    print("\n" + "=" * 60)
+    print("COMPARAÇÃO ENTRE OS DOIS DATASETS")
+    print("=" * 60)
+
+    try:
+        df1 = pd.read_parquet('portos_brasil_historico_portos_hibridos.parquet')
+        df2 = pd.read_parquet('dados_historicos_meteorologicos_complementares.parquet')
+    except FileNotFoundError as e:
+        print(f"❌ Arquivo não encontrado: {e}")
+        return
+
+    print("\n📊 DATASET 1 - Portos Híbridos (Estuarinos):")
+    print(f"   Portos: {', '.join(df1['station'].unique())}")
+    print(f"   Período: {df1['timestamp'].min().date()} a {df1['timestamp'].max().date()}")
+    print(f"   Registros: {len(df1):,}")
+    print(f"   Variáveis: {len(df1.columns)}")
+    print(f"   Principais: mare_astronomica, wind_speed, press, vazao_fluvial")
+
+    print("\n📊 DATASET 2 - Oceanográficos:")
+    print(f"   Portos: {', '.join(df2['station'].unique())}")
+    print(f"   Período: {df2['timestamp'].min().date()} a {df2['timestamp'].max().date()}")
+    print(f"   Registros: {len(df2):,}")
+    print(f"   Variáveis: {len(df2.columns)}")
+    print(f"   Principais: wave_height, sea_level_height_msl, frente_fria, pressao_anomalia")
+
+    # Portos em comum
+    portos_comum = set(df1['station'].unique()) & set(df2['station'].unique())
+    print(f"\n🔄 Portos em AMBOS os datasets: {', '.join(portos_comum)}")
+
+    if portos_comum:
+        print("\n   💡 Para esses portos você pode:")
+        print("      - Comparar INMET vs ERA5")
+        print("      - Validar modelos com diferentes fontes")
+        print("      - Combinar vazão (Dataset1) + ondas (Dataset2)")
+
+if __name__ == '__main__':
+    # Executar todas as análises
+    print("=" * 60)
+    print("ANÁLISE DOS DATASETS HISTÓRICOS DE MARÉS")
+    print("=" * 60)
+
+    # Dataset 1 - Estuarinos
+    print("\n\n[1/5] DATASET 1 - PORTOS HÍBRIDOS")
+    explorar_dataset()
+
+    print("\n\n[2/5] DATASET 1 - COMPARAÇÃO ENTRE PORTOS")
+    comparar_portos()
+
+    print("\n\n[3/5] DATASET 1 - PREPARAÇÃO PARA ML")
+    exemplo_preparacao_ml()
+
+    # Dataset 2 - Oceanográficos
+    print("\n\n[4/5] DATASET 2 - OCEANOGRÁFICOS")
+    explorar_dataset_oceanografico()
+
+    # Comparação entre datasets
+    print("\n\n[5/5] COMPARAÇÃO ENTRE DATASETS")
+    comparar_datasets()
+
+    print("\n" + "=" * 60)
+    print("✅ Análise completa concluída!")
+    print("=" * 60)
+    print("\n💡 Próximos passos:")
+    print("   1. Obter observações reais do nível de água (target)")
+    print("   2. Escolher o dataset mais adequado ao seu caso")
+    print("   3. Feature engineering adicional conforme necessidade")
+    print("   4. Treinar modelo de ML")
+    print("   5. Validar com dados independentes")
