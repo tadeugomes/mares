@@ -218,3 +218,160 @@ Features meteorológicas e fluviais em estuários deveriam apresentar correlaç�
 O principal motivo pelo qual os resultados preditivos não melhoraram é que **as features "atualizadas" (vazão, meteorologia complementar) contêm dados sintéticos/aleatórios** que não representam a realidade física. O modelo de ML não consegue aprender padrões preditivos úteis a partir de ruído.
 
 Para obter melhorias reais, é necessário substituir os dados sintéticos por dados reais das fontes oficiais (ANA HidroWeb, INMET, CHIRPS, ERA5).
+
+---
+
+## AÇÕES REALIZADAS (2026-01-22)
+
+### 1. Dataset Corrigido Gerado
+
+Foi criado o arquivo `dataset_ml_corrigido.parquet` com as seguintes correções:
+
+| Aspecto | Antes | Depois |
+|---------|-------|--------|
+| Maré astronômica | 4 componentes | **27-35 componentes** |
+| Meteorologia | Parcialmente sintético | **ERA5 real** |
+| Período | 1 ano (2020) | **6 anos (2020-2025)** |
+| Portos | 3 | **10 portos** |
+| Features derivadas | Nenhuma | **15+ features físicas** |
+
+### 2. Features Disponíveis no Novo Dataset
+
+**Maré Astronômica (CORRIGIDA):**
+- `mare_astronomica_alta_precisao`: calculada com 27-35 componentes harmônicas
+- `mare_grad_1h`, `mare_grad_3h`: taxa de variação da maré
+- `mare_subindo`: indicador booleano de direção
+- `mare_desvio_nm`: desvio do nível médio
+
+**Meteorologia (ERA5 REAL):**
+- `wind_speed_10m`, `wind_direction_10m`: vento
+- `pressure_msl`: pressão atmosférica
+- `pressao_grad_3h/6h/12h`: gradientes de pressão
+- `frente_fria`: indicador de passagem de frente
+
+**Oceanografia (ERA5 REAL):**
+- `wave_height`, `wave_period`: ondas
+- `sea_level_height_msl`: nível do mar modelado
+- `ressaca`, `ressaca_forte`: indicadores de ressaca
+
+**Features Derivadas (NOVAS):**
+- `vento_sul`, `vento_sul_intensidade`: crítico para ressacas Sul/Sudeste
+- `vento_norte`, `vento_norte_intensidade`: relevante para Nordeste
+- `sin_hora`, `cos_hora`: ciclo diário
+- `sin_mes`, `cos_mes`: sazonalidade anual
+- `sin_dia_ano`, `cos_dia_ano`: ciclo anual completo
+
+### 3. Validação de Qualidade
+
+Autocorrelação da maré astronômica (esperado > 0.85):
+```
+Santos              : 0.8879 [OK]
+Paranagua           : 0.8668 [OK]
+RioGrande           : 0.9048 [OK]
+Itaqui              : 0.8707 [OK]
+Suape               : 0.8757 [OK]
+Recife              : 0.8758 [OK]
+Salvador            : 0.8756 [OK]
+Pecem               : 0.8750 [OK]
+BarcarenaPA         : 0.8729 [OK]
+```
+
+### 4. Script de Geração
+
+O script `gerar_dataset_corrigido.py` foi criado para:
+1. Calcular maré astronômica de alta precisão
+2. Integrar dados meteorológicos ERA5
+3. Criar features derivadas
+4. Integrar automaticamente dados de vazão real (quando disponível)
+5. Validar qualidade dos dados
+
+---
+
+## DADOS AINDA NECESSÁRIOS
+
+Para completar o sistema preditivo, ainda são necessários:
+
+### 1. Vazão Fluvial REAL (Crítico para Arco Norte)
+
+**Fonte:** ANA HidroWeb (https://www.snirh.gov.br/hidroweb/)
+
+**Estações sugeridas:**
+| Porto | Estação ANA | Código |
+|-------|-------------|--------|
+| Vila do Conde | Óbidos | 15400000 |
+| Barcarena | Óbidos | 15400000 |
+| Santarém | Itaituba | 15120000 |
+| Paranaguá | Guaraqueçaba | 65100000 |
+| Rio Grande | Pelotas | 87399000 |
+
+**Formato necessário:**
+```
+timestamp, estacao, vazao_m3s, cota_m
+```
+
+### 2. Nível de Água OBSERVADO (Target para ML)
+
+**Fonte:** Réguas dos portos, ANA, Marinha do Brasil
+
+Sem o nível de água **observado**, não é possível treinar modelos supervisionados.
+
+**Formato necessário:**
+```
+timestamp, porto, nivel_observado_m
+```
+
+### 3. Precipitação na Bacia (Opcional, melhora predição)
+
+**Fontes:**
+- CHIRPS (Climate Hazards Group InfraRed Precipitation with Station data)
+- MERGE/INPE
+- ANA pluviômetros
+
+**Formato necessário:**
+```
+timestamp, bacia, precip_mm, precip_acum_30d_mm
+```
+
+---
+
+## COMO USAR O DATASET CORRIGIDO
+
+```python
+import pandas as pd
+
+# Carregar dataset corrigido
+df = pd.read_parquet('dataset_ml_corrigido.parquet')
+
+# Filtrar por porto
+df_santos = df[df['porto'] == 'Santos'].copy()
+
+# Features para modelo ML
+features = [
+    'mare_astronomica_alta_precisao',
+    'mare_grad_1h',
+    'mare_subindo',
+    'wind_speed_10m',
+    'vento_sul_intensidade',
+    'pressure_msl',
+    'pressao_grad_6h',
+    'wave_height',
+    'sin_hora',
+    'sin_mes',
+]
+
+X = df_santos[features]
+# y = df_santos['nivel_observado']  # Precisa obter externamente!
+```
+
+---
+
+## RESUMO FINAL
+
+| Item | Status |
+|------|--------|
+| Maré astronômica alta precisão | ✅ Corrigido |
+| Meteorologia ERA5 | ✅ Integrado |
+| Features derivadas | ✅ Criadas |
+| Vazão fluvial real | ⏳ Aguardando dados ANA |
+| Nível observado (target) | ❌ Necessário obter |
+| Precipitação bacia | ⏳ Opcional |
