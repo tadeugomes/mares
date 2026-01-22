@@ -33,3 +33,7 @@ wheels/
 # OS
 .DS_Store
 Thumbs.db
+
+# Datasets gerados (podem ser regenerados com gerar_dataset_corrigido.py)
+dataset_ml_corrigido.parquet
+dataset_ml_corrigido.csv
